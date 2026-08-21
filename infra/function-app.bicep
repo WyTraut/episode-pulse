@@ -21,6 +21,12 @@ param storageAccountName string
 @description('Existing EpisodePulse Key Vault name')
 param keyVaultName string
 
+@description('Event Hubs namespace used for normalized observations')
+param eventHubNamespaceName string
+
+@description('Event Hub used for normalized observations')
+param eventHubName string
+
 var hostingPlanName = 'plan-${functionAppName}'
 
 var storageBlobDataOwnerRoleId = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
@@ -209,6 +215,10 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2024-04-01' = {
 
     KEY_VAULT_URI: keyVault.properties.vaultUri
     TRAKT_CLIENT_ID_SECRET_NAME: 'trakt-client-id'
+
+    EVENT_HUB_FULLY_QUALIFIED_NAMESPACE: '${eventHubNamespaceName}.servicebus.windows.net'
+    EVENT_HUB_NAME: eventHubName
+
     APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsights.properties.ConnectionString
   }
 }
