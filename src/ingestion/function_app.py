@@ -38,7 +38,7 @@ def collect_trakt(timer: func.TimerRequest) -> None:
 
     response = requests.get(
         "https://api.trakt.tv/shows/trending",
-        params={"limit": 10},
+        params={"limit": 200},
         headers={
             "trakt-api-key": trakt_client_id,
             "trakt-api-version": "2",
