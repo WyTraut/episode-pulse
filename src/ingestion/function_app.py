@@ -10,6 +10,9 @@ from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from azure.storage.blob import BlobServiceClient, ContentSettings
 
+from publisher import publish_observations
+from transform import transform_trending_snapshot
+
 app = func.FunctionApp()
 
 
@@ -92,3 +95,24 @@ def collect_trakt(timer: func.TimerRequest) -> None:
     )
 
     logging.info("Stored raw Trakt snapshot at %s.", blob_name)
+
+    observations = transform_trending_snapshot(snapshot)
+
+    logging.info(
+        "Transformed raw snapshot into %d clean observations.",
+        len(observations),
+    )
+
+    published_count = publish_observations(
+        observations=observations,
+        fully_qualified_namespace=os.environ[
+            "EVENT_HUB_FULLY_QUALIFIED_NAMESPACE"
+        ],
+        event_hub_name=os.environ["EVENT_HUB_NAME"],
+        credential=credential,
+    )
+
+    logging.info(
+        "Published %d observations to Azure Event Hubs.",
+        published_count,
+    )

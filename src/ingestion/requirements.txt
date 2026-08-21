@@ -3,6 +3,7 @@
 # azure-monitor-opentelemetry 
 
 azure-functions
+azure-eventhub
 azure-identity
 azure-keyvault-secrets
 azure-storage-blob

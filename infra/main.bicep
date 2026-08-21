@@ -20,6 +20,9 @@ param keyVaultName string
 @description('Globally unique name for the Azure Function App')
 param functionAppName string
 
+@description('Globally unique name for the Event Hubs namespace')
+param eventHubNamespaceName string
+
 // Build a consistent resource group name from the environment and region.
 var resourceGroupName = 'rg-epulse-${environment}-${regionCode}'
 
@@ -66,9 +69,27 @@ module functionAppModule './function-app.bicep' = {
     environment: environment
     storageBlobEndpoint: storageModule.outputs.blobEndpoint
     functionDeploymentContainerName: storageModule.outputs.functionDeploymentContainerName
+    eventHubNamespaceName: eventHubNamespaceName
+    eventHubName: 'observations'
   }
   dependsOn: [
     keyVaultModule
+  ]
+}
+
+// Create the stream that carries normalized observations to Microsoft Fabric.
+module eventHubModule './event-hub.bicep' = {
+  name: 'eventHubDeployment'
+  scope: resourceGroup
+  params: {
+    eventHubNamespaceName: eventHubNamespaceName
+    eventHubName: 'observations'
+    functionIdentityName: 'id-${functionAppName}'
+    location: location
+    environment: environment
+  }
+  dependsOn: [
+    functionAppModule
   ]
 }
 
