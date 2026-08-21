@@ -14,6 +14,9 @@ param environment string = 'dev'
 @description('Short code for the selected Azure region')
 param regionCode string = 'cus'
 
+@description('Globally unique name for the Key Vault')
+param keyVaultName string
+
 // Build a consistent resource group name from the environment and region.
 var resourceGroupName = 'rg-epulse-${environment}-${regionCode}'
 
@@ -32,6 +35,16 @@ module storageModule './storage.bicep' = {
   scope: resourceGroup
   params: {
     storageAccountName: storageAccountName
+    location: location
+    environment: environment
+  }
+}
+// Deploy Key Vault inside the EpisodePulse resource group.
+module keyVaultModule './key-vault.bicep' = {
+  name: 'keyVaultDeployment'
+  scope: resourceGroup
+  params: {
+    keyVaultName: keyVaultName
     location: location
     environment: environment
   }
