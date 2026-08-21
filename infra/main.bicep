@@ -17,8 +17,12 @@ param regionCode string = 'cus'
 @description('Globally unique name for the Key Vault')
 param keyVaultName string
 
+@description('Globally unique name for the Azure Function App')
+param functionAppName string
+
 // Build a consistent resource group name from the environment and region.
 var resourceGroupName = 'rg-epulse-${environment}-${regionCode}'
+
 
 // Create the resource group that will contain the EpisodePulse resources.
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2025-04-01' = {
@@ -49,5 +53,25 @@ module keyVaultModule './key-vault.bicep' = {
     environment: environment
   }
 }
+
+// Deploy the EpisodePulse ingestion Function App.
+module functionAppModule './function-app.bicep' = {
+  name: 'functionAppDeployment'
+  scope: resourceGroup
+  params: {
+    keyVaultName: keyVaultName
+    storageAccountName: storageAccountName
+    functionAppName: functionAppName
+    location: location
+    environment: environment
+    storageBlobEndpoint: storageModule.outputs.blobEndpoint
+    functionDeploymentContainerName: storageModule.outputs.functionDeploymentContainerName
+  }
+  dependsOn: [
+    keyVaultModule
+  ]
+}
+
+
 // Return the resource group name after the deployment finishes.
 output resourceGroupName string = resourceGroup.name

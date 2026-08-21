@@ -35,3 +35,16 @@ resource rawContainer 'Microsoft.Storage/storageAccounts/blobServices/containers
     publicAccess: 'None'
   }
 }
+
+// Store deployed Azure Function code packages.
+resource functionDeploymentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'function-deployments'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+output storageAccountId string = storageAccount.id
+output blobEndpoint string = storageAccount.properties.primaryEndpoints.blob
+output functionDeploymentContainerName string = functionDeploymentContainer.name
