@@ -202,6 +202,7 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2024-04-01' = {
     AzureWebJobsStorage__accountName: storageAccount.name
     AzureWebJobsStorage__credential: 'managedidentity'
     AzureWebJobsStorage__clientId: functionIdentity.properties.clientId
+    AZURE_CLIENT_ID: functionIdentity.properties.clientId
 
     DATA_STORAGE_ACCOUNT_NAME: storageAccount.name
     RAW_CONTAINER_NAME: 'raw'
