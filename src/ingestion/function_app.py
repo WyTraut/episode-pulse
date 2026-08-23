@@ -11,7 +11,7 @@ from azure.keyvault.secrets import SecretClient
 from azure.storage.blob import BlobServiceClient, ContentSettings
 
 from publisher import publish_observations
-from transform import transform_trending_snapshot
+from transform import calculate_snapshot_hash, transform_trending_snapshot
 
 app = func.FunctionApp()
 
@@ -61,7 +61,9 @@ def collect_trakt(timer: func.TimerRequest) -> None:
 
     snapshot = {
         "collection_id": collection_id,
-        "schema_version": "1.0",
+        "collection_size": len(trending_shows),
+        "snapshot_hash": calculate_snapshot_hash(trending_shows),
+        "schema_version": "1.1",
         "metric_type": "trending_24h",
         "source_timestamp": response.headers.get("Last-Modified"),
         "observed_at": observed_at.isoformat().replace("+00:00", "Z"),

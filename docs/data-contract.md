@@ -2,7 +2,7 @@
 
 Status: Draft
 
-Contract version: 1.0
+Contract version: 1.1
 
 ## Purpose
 
@@ -14,6 +14,8 @@ One observation represents one television show from one Trakt API collection. Ob
 | --- | --- | --- |
 | `event_id` | Unique identifier for this observation | Yes |
 | `collection_id` | Identifier shared by every observation created from the same API response | Yes |
+| `collection_size` | Number of observations expected from this API collection | Yes |
+| `snapshot_hash` | Lowercase SHA-256 fingerprint of the canonical JSON API payload | Yes |
 | `schema_version` | Version of this contract used to create the observation | Yes |
 | `metric_type` | Either `trending_24h` or `current_watchers` | Yes |
 | `trakt_show_id` | Stable Trakt identifier for the show | Yes |
@@ -49,6 +51,11 @@ All timestamps must use UTC. Keeping these timestamps separate allows EpisodePul
 
 - `event_id` must be unique.
 - `collection_id` must be identical for observations from the same API response.
+- `collection_size` must be greater than zero and equal for every observation in a collection.
+- The number of observations for a completed collection must equal `collection_size`.
+- `snapshot_hash` must be identical for every observation in a collection.
+- Identical API payloads must produce the same `snapshot_hash`.
+- `snapshot_hash` must match the payload serialized with sorted keys and no insignificant whitespace.
 - `watcher_count` must be zero or greater.
 - `trakt_show_id` must be present and greater than zero.
 - `rank` must be greater than zero for `trending_24h` and empty for `current_watchers`.

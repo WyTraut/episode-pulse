@@ -2,39 +2,43 @@ from uuid import UUID
 
 import pytest
 
-from transform import transform_trending_snapshot
+from transform import calculate_snapshot_hash, transform_trending_snapshot
 
 
 @pytest.fixture
 def trending_snapshot() -> dict:
+    payload = [
+        {
+            "watchers": 1200,
+            "show": {
+                "title": "First Show",
+                "ids": {
+                    "trakt": 101,
+                    "tmdb": 1001,
+                },
+            },
+        },
+        {
+            "watchers": 900,
+            "show": {
+                "title": "Second Show",
+                "ids": {
+                    "trakt": 202,
+                },
+            },
+        },
+    ]
+
     return {
         "collection_id": "collection-123",
-        "schema_version": "1.0",
+        "collection_size": len(payload),
+        "snapshot_hash": calculate_snapshot_hash(payload),
+        "schema_version": "1.1",
         "metric_type": "trending_24h",
         "source_timestamp": "Fri, 21 Aug 2026 04:00:00 GMT",
         "observed_at": "2026-08-21T04:05:00Z",
         "ingested_at": "2026-08-21T04:05:01Z",
-        "payload": [
-            {
-                "watchers": 1200,
-                "show": {
-                    "title": "First Show",
-                    "ids": {
-                        "trakt": 101,
-                        "tmdb": 1001,
-                    },
-                },
-            },
-            {
-                "watchers": 900,
-                "show": {
-                    "title": "Second Show",
-                    "ids": {
-                        "trakt": 202,
-                    },
-                },
-            },
-        ],
+        "payload": payload,
     }
 
 
@@ -47,7 +51,9 @@ def test_transforms_snapshot_into_ranked_observations(
     assert observations[0] == {
         "event_id": observations[0]["event_id"],
         "collection_id": "collection-123",
-        "schema_version": "1.0",
+        "collection_size": 2,
+        "snapshot_hash": trending_snapshot["snapshot_hash"],
+        "schema_version": "1.1",
         "metric_type": "trending_24h",
         "trakt_show_id": 101,
         "tmdb_show_id": 1001,
@@ -70,6 +76,31 @@ def test_event_ids_are_deterministic(trending_snapshot: dict) -> None:
     assert [item["event_id"] for item in first_run] == [
         item["event_id"] for item in second_run
     ]
+
+
+def test_snapshot_hash_is_stable_for_equivalent_json() -> None:
+    first_payload = [{"show": {"title": "Example"}, "watchers": 10}]
+    second_payload = [{"watchers": 10, "show": {"title": "Example"}}]
+
+    assert calculate_snapshot_hash(first_payload) == calculate_snapshot_hash(
+        second_payload
+    )
+
+
+def test_rejects_incomplete_collection(trending_snapshot: dict) -> None:
+    trending_snapshot["collection_size"] = 3
+
+    with pytest.raises(ValueError, match="does not match the payload length"):
+        transform_trending_snapshot(trending_snapshot)
+
+
+def test_rejects_hash_that_does_not_match_payload(
+    trending_snapshot: dict,
+) -> None:
+    trending_snapshot["snapshot_hash"] = "0" * 64
+
+    with pytest.raises(ValueError, match="does not match the payload"):
+        transform_trending_snapshot(trending_snapshot)
 
 
 def test_rejects_negative_watcher_count(trending_snapshot: dict) -> None:
