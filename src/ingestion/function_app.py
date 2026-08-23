@@ -11,7 +11,7 @@ from azure.keyvault.secrets import SecretClient
 from azure.storage.blob import BlobServiceClient, ContentSettings
 
 from publisher import publish_observations
-from serving import write_current_trending
+from serving import write_current_trending, write_recent_trending
 from transform import calculate_snapshot_hash, transform_trending_snapshot
 
 app = func.FunctionApp()
@@ -133,5 +133,21 @@ def collect_trakt(timer: func.TimerRequest) -> None:
         )
     except Exception:
         logging.exception(
-            "Failed to update dashboard serving data; analytics ingestion succeeded."
+            "Failed to update current dashboard data; analytics ingestion succeeded."
+        )
+
+    try:
+        history_document = write_recent_trending(
+            blob_service_client=blob_service,
+            container_name=os.environ["SERVING_CONTAINER_NAME"],
+            snapshot=snapshot,
+            observations=observations,
+        )
+        logging.info(
+            "Updated dashboard history with %d collections.",
+            len(history_document["snapshots"]),
+        )
+    except Exception:
+        logging.exception(
+            "Failed to update dashboard history; analytics ingestion succeeded."
         )

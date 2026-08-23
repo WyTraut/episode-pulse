@@ -42,6 +42,8 @@ def test_root_serves_dashboard() -> None:
     assert response.headers["content-type"].startswith("text/html")
     assert "TV attention." in response.text
     assert "Shows drawing the most attention." in response.text
+    assert '<dialog class="show-drawer"' in response.text
+    assert '<canvas id="history-chart"' in response.text
     assert response.headers["x-content-type-options"] == "nosniff"
 
 
@@ -52,6 +54,7 @@ def test_static_dashboard_assets_are_available() -> None:
     assert stylesheet.status_code == 200
     assert javascript.status_code == 200
     assert 'fetch("/api/trending"' in javascript.text
+    assert "`/api/shows/${showId}/history`" in javascript.text
 
 
 def test_returns_current_trending_document(monkeypatch) -> None:
@@ -74,6 +77,132 @@ def test_returns_current_trending_document(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json() == document
     assert response.headers["cache-control"] == "public, max-age=60"
+
+
+def make_current_document() -> dict:
+    return {
+        "serving_schema_version": "1.1",
+        "shows": [
+            {
+                "trakt_show_id": 101,
+                "tmdb_show_id": 1001,
+                "title": "Silo",
+                "rank": 2,
+                "rank_change": 1,
+                "watcher_count": 1200,
+                "watcher_change": 100,
+                "is_new": False,
+            }
+        ],
+    }
+
+
+def make_history_document() -> dict:
+    return {
+        "history_schema_version": "1.0",
+        "expected_interval_minutes": 5,
+        "snapshots": [
+            {
+                "collection_id": "one",
+                "snapshot_hash": "a" * 64,
+                "checked_at": "2026-08-23T02:50:00Z",
+                "shows": [
+                    {"trakt_show_id": 101, "rank": 3, "watcher_count": 1100}
+                ],
+            },
+            {
+                "collection_id": "two",
+                "snapshot_hash": "a" * 64,
+                "checked_at": "2026-08-23T02:55:00Z",
+                "shows": [],
+            },
+            {
+                "collection_id": "three",
+                "snapshot_hash": "b" * 64,
+                "checked_at": "2026-08-23T03:00:00Z",
+                "shows": [
+                    {"trakt_show_id": 101, "rank": 2, "watcher_count": 1200}
+                ],
+            },
+        ],
+    }
+
+
+def patch_history_clients(monkeypatch, current_download, history_download) -> None:
+    monkeypatch.setattr(
+        api_module,
+        "_current_trending_blob_client",
+        lambda: FakeBlobClient(current_download),
+    )
+    monkeypatch.setattr(
+        api_module,
+        "_recent_trending_blob_client",
+        lambda: FakeBlobClient(history_download),
+    )
+
+
+def test_returns_show_history_with_explicit_gaps(monkeypatch) -> None:
+    patch_history_clients(
+        monkeypatch,
+        FakeDownload(payload=json.dumps(make_current_document()).encode()),
+        FakeDownload(payload=json.dumps(make_history_document()).encode()),
+    )
+
+    response = client.get("/api/shows/101/history")
+
+    assert response.status_code == 200
+    document = response.json()
+    assert document["show"]["title"] == "Silo"
+    assert document["show"]["rank_change"] == 1
+    assert document["window"]["point_count"] == 3
+    assert document["points"][0]["source_changed"] is None
+    assert document["points"][1] == {
+        "checked_at": "2026-08-23T02:55:00Z",
+        "rank": None,
+        "watcher_count": None,
+        "present": False,
+        "source_changed": False,
+    }
+    assert document["points"][2]["source_changed"] is True
+    assert response.headers["cache-control"] == "public, max-age=60"
+
+
+def test_show_history_returns_not_found_for_unknown_current_show(monkeypatch) -> None:
+    patch_history_clients(
+        monkeypatch,
+        FakeDownload(payload=json.dumps(make_current_document()).encode()),
+        FakeDownload(payload=json.dumps(make_history_document()).encode()),
+    )
+
+    response = client.get("/api/shows/999/history")
+
+    assert response.status_code == 404
+
+
+def test_show_history_returns_service_unavailable_when_history_is_missing(
+    monkeypatch,
+) -> None:
+    patch_history_clients(
+        monkeypatch,
+        FakeDownload(payload=json.dumps(make_current_document()).encode()),
+        FakeDownload(error=ResourceNotFoundError("Missing")),
+    )
+
+    response = client.get("/api/shows/101/history")
+
+    assert response.status_code == 503
+
+
+def test_show_history_returns_bad_gateway_when_storage_fails(monkeypatch) -> None:
+    patch_history_clients(
+        monkeypatch,
+        FakeDownload(payload=json.dumps(make_current_document()).encode()),
+        FakeDownload(error=HttpResponseError(message="Storage failed")),
+    )
+
+    response = client.get("/api/shows/101/history")
+
+    assert response.status_code == 502
 
 
 def test_returns_service_unavailable_when_projection_is_missing(monkeypatch) -> None:

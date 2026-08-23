@@ -72,11 +72,15 @@
       </section>
 
       <section class="featured-section" id="trending" aria-labelledby="featured-title">
-        <div class="section-heading">
+        <div class="section-heading featured-heading">
           <h2 id="featured-title">
             <span>Trending now.</span>
             <span>Shows drawing the most attention.</span>
           </h2>
+          <div class="rail-controls" aria-label="Featured shows controls">
+            <button id="featured-previous" type="button" aria-label="Previous featured shows">←</button>
+            <button id="featured-next" type="button" aria-label="Next featured shows">→</button>
+          </div>
         </div>
         <div class="featured-rail" id="featured-shows" aria-live="polite"></div>
       </section>
@@ -101,6 +105,7 @@
                 <th scope="col">Rank</th>
                 <th scope="col">Show</th>
                 <th scope="col" class="number-column">Watchers</th>
+                <th scope="col" class="movement-column">Movement</th>
                 <th scope="col" class="signal-column">Relative signal</th>
               </tr>
             </thead>
@@ -122,6 +127,58 @@
         </div>
       </section>
     </main>
+
+    <dialog class="show-drawer" id="show-detail" aria-labelledby="drawer-title">
+      <div class="drawer-shell">
+        <header class="drawer-header">
+          <div>
+            <p class="eyebrow">Six-hour movement</p>
+            <h2 id="drawer-title">Show history</h2>
+          </div>
+          <button class="drawer-close" id="drawer-close" type="button" aria-label="Close show history">×</button>
+        </header>
+
+        <p class="drawer-status" id="drawer-status" role="status" aria-live="polite">Loading recent history…</p>
+
+        <div class="drawer-content" id="drawer-content" hidden>
+          <div class="drawer-metrics" aria-label="Current show metrics">
+            <article>
+              <p>Current rank</p>
+              <strong id="drawer-rank">—</strong>
+              <span id="drawer-rank-change">—</span>
+            </article>
+            <article>
+              <p>Watchers</p>
+              <strong id="drawer-watchers">—</strong>
+              <span id="drawer-watcher-change">—</span>
+            </article>
+          </div>
+
+          <div class="source-state" id="source-state">
+            <span aria-hidden="true"></span>
+            <p id="source-state-text">Checking source movement…</p>
+          </div>
+
+          <section class="chart-section" aria-labelledby="chart-title">
+            <div class="chart-heading">
+              <div>
+                <p class="chart-label">Recent observations</p>
+                <h3 id="chart-title">Watcher activity</h3>
+              </div>
+              <div class="chart-toggle" aria-label="Chart metric">
+                <button type="button" data-chart-metric="watcher_count" aria-pressed="true">Watchers</button>
+                <button type="button" data-chart-metric="rank" aria-pressed="false">Rank</button>
+              </div>
+            </div>
+            <div class="chart-shell">
+              <canvas id="history-chart" width="720" height="320" aria-label="Recent watcher activity chart"></canvas>
+            </div>
+            <p class="chart-tooltip" id="chart-tooltip" aria-live="polite">Move across the chart to inspect a point.</p>
+            <p class="chart-range" id="chart-range">—</p>
+          </section>
+        </div>
+      </div>
+    </dialog>
 
     <footer>
       <p>Built as an end-to-end Azure and Microsoft Fabric data engineering project.</p>
