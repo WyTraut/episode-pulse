@@ -94,26 +94,11 @@ function trendSummary(show) {
   return parts.join(" · ");
 }
 
-function sparklineColor(status, onSignalBand) {
-  if (onSignalBand) {
-    if (status === "down" || status === "cooling") {
-      return "#ffb0b4";
-    }
-    if (status === "mixed") {
-      return "#ffe27a";
-    }
-    return "#b8ff65";
-  }
-  if (status === "down" || status === "cooling") {
-    return "#c7182b";
-  }
-  if (status === "mixed") {
-    return "#846400";
-  }
-  return "#1748d4";
+function sparklineColor(onSignalBand) {
+  return onSignalBand ? "#343837" : "#56605b";
 }
 
-function drawSparkline(canvas, rawPoints, status, onSignalBand) {
+function drawSparkline(canvas, rawPoints, onSignalBand) {
   const context = canvas.getContext("2d");
   const width = canvas.width;
   const height = canvas.height;
@@ -122,7 +107,9 @@ function drawSparkline(canvas, rawPoints, status, onSignalBand) {
   context.clearRect(0, 0, width, height);
 
   if (values.length < 2) {
-    context.strokeStyle = onSignalBand ? "rgba(255,255,255,0.45)" : "rgba(23,23,23,0.3)";
+    context.strokeStyle = onSignalBand
+      ? "rgba(52,56,55,0.35)"
+      : "rgba(32,34,35,0.3)";
     context.setLineDash([4, 4]);
     context.beginPath();
     context.moveTo(0, height / 2);
@@ -140,7 +127,7 @@ function drawSparkline(canvas, rawPoints, status, onSignalBand) {
 
   const xForIndex = (index) => (index / Math.max(points.length - 1, 1)) * width;
   const yForRank = (rank) => 4 + ((rank - minimum) / (maximum - minimum)) * (height - 8);
-  context.strokeStyle = sparklineColor(status, onSignalBand);
+  context.strokeStyle = sparklineColor(onSignalBand);
   context.lineWidth = 2.5;
   context.lineJoin = "round";
   context.lineCap = "round";
@@ -187,7 +174,7 @@ function createTrendSparkline(show, { onSignalBand = false, focusable = true } =
   tooltip.textContent = summary;
 
   sparkline.append(canvas, tooltip);
-  drawSparkline(canvas, show.trend_rank_points, show.trend_status, onSignalBand);
+  drawSparkline(canvas, show.trend_rank_points, onSignalBand);
   return sparkline;
 }
 
@@ -514,7 +501,7 @@ function drawHistoryChart(animate = false) {
     context.beginPath();
     context.rect(padding.left, padding.top - 4, plotWidth * reveal, plotHeight + 8);
     context.clip();
-    context.strokeStyle = "#0066cc";
+    context.strokeStyle = "#56605b";
     context.lineWidth = 3;
     context.lineJoin = "round";
     context.lineCap = "round";
@@ -539,7 +526,7 @@ function drawHistoryChart(animate = false) {
         return;
       }
       context.beginPath();
-      context.fillStyle = entry.point.source_changed === false ? "#86868b" : "#0066cc";
+      context.fillStyle = entry.point.source_changed === false ? "#a0a39f" : "#56605b";
       context.arc(entry.x, entry.y, 3.5, 0, Math.PI * 2);
       context.fill();
     });

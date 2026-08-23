@@ -1,16 +1,15 @@
 :root {
   color-scheme: light;
-  --ink: #171717;
-  --muted: #6b6963;
-  --line: rgba(23, 23, 23, 0.2);
-  --dark: #141414;
-  --dark-muted: #999994;
-  --signal: #1748d4;
-  --signal-bright: #b8ff65;
-  --paper: #f0eee7;
-  --blue: #1748d4;
-  --green: #28c76f;
-  --red: #ff5964;
+  --ink: #202223;
+  --muted: #6b706d;
+  --line: rgba(32, 34, 35, 0.18);
+  --dark: #292b2c;
+  --dark-muted: #a8aaa7;
+  --signal: #dfe5e1;
+  --signal-bright: #cbd7cf;
+  --paper: #f8f7f2;
+  --accent: #56605b;
+  --red: #9a7d7f;
   --max-width: 1320px;
 }
 
@@ -69,7 +68,7 @@ button {
   top: 0;
   z-index: 10;
   border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(20, 20, 20, 0.92);
+  background: rgba(41, 43, 44, 0.94);
   color: #f7f5ee;
   backdrop-filter: blur(18px);
 }
@@ -136,7 +135,7 @@ nav a:focus-visible {
 .fact-symbol-live {
   border-radius: 50%;
   background: var(--signal-bright);
-  box-shadow: 0 0 0 0.25rem rgba(184, 255, 101, 0.12);
+  box-shadow: 0 0 0 0.25rem rgba(203, 215, 207, 0.12);
 }
 
 .live-dot {
@@ -147,7 +146,7 @@ nav a:focus-visible {
 .live-badge.is-stale .live-dot,
 .live-badge.is-error .live-dot {
   background: var(--red);
-  box-shadow: 0 0 0 0.25rem rgba(255, 89, 100, 0.12);
+  box-shadow: 0 0 0 0.25rem rgba(154, 125, 127, 0.14);
 }
 
 .page-third {
@@ -300,7 +299,7 @@ h1 span {
 .signal-third {
   min-height: 100vh;
   background: var(--signal);
-  color: #fff;
+  color: var(--ink);
 }
 
 .featured-section,
@@ -322,7 +321,7 @@ h1 span {
 }
 
 .signal-third .section-number {
-  color: var(--signal-bright);
+  color: var(--accent);
 }
 
 .section-heading h2 {
@@ -339,14 +338,14 @@ h1 span {
 }
 
 .signal-third .section-heading h2 span:last-child {
-  color: rgba(255, 255, 255, 0.54);
+  color: rgba(32, 34, 35, 0.52);
 }
 
 .featured-rail {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  border-top: 1px solid rgba(255, 255, 255, 0.35);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+  border-top: 1px solid rgba(32, 34, 35, 0.28);
+  border-bottom: 1px solid rgba(32, 34, 35, 0.28);
 }
 
 .featured-card {
@@ -360,10 +359,10 @@ h1 span {
   justify-content: space-between;
   padding: 1.5rem;
   border: 0;
-  border-right: 1px solid rgba(255, 255, 255, 0.35);
+  border-right: 1px solid rgba(32, 34, 35, 0.28);
   border-radius: 0;
   background: transparent;
-  color: #fff;
+  color: var(--ink);
   cursor: pointer;
   text-align: left;
   transition: background 180ms ease;
@@ -375,7 +374,7 @@ h1 span {
 
 .featured-card:hover,
 .featured-card:focus-visible {
-  background: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.32);
 }
 
 .featured-card.is-entering {
@@ -392,7 +391,7 @@ h1 span {
   right: 0.75rem;
   bottom: -1.5rem;
   z-index: -1;
-  color: rgba(255, 255, 255, 0.08);
+  color: rgba(32, 34, 35, 0.07);
   content: attr(data-rank);
   font-size: clamp(8rem, 13vw, 13rem);
   font-weight: 760;
@@ -406,7 +405,7 @@ h1 span {
 .featured-card.tone-warm,
 .featured-card.tone-green {
   background-color: transparent;
-  color: #fff;
+  color: var(--ink);
 }
 
 .featured-card.tone-dark:hover,
@@ -414,7 +413,7 @@ h1 span {
 .featured-card.tone-violet:hover,
 .featured-card.tone-warm:hover,
 .featured-card.tone-green:hover {
-  background-color: rgba(255, 255, 255, 0.09);
+  background-color: rgba(255, 255, 255, 0.32);
 }
 
 .featured-topline {
@@ -445,19 +444,19 @@ h1 span {
 
 .featured-count {
   margin-bottom: 1.2rem;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--muted);
   font-size: 0.83rem;
 }
 
 .featured-count strong {
-  color: #fff;
+  color: var(--ink);
   font-size: 1rem;
 }
 
 .rail-controls {
   display: flex;
   gap: 0;
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(32, 34, 35, 0.45);
 }
 
 .rail-controls button {
@@ -466,10 +465,10 @@ h1 span {
   height: 3rem;
   place-items: center;
   border: 0;
-  border-right: 1px solid rgba(255, 255, 255, 0.5);
+  border-right: 1px solid rgba(32, 34, 35, 0.45);
   border-radius: 0;
   background: transparent;
-  color: #fff;
+  color: var(--ink);
   cursor: pointer;
   font-size: 1.05rem;
 }
@@ -480,8 +479,8 @@ h1 span {
 
 .rail-controls button:hover,
 .rail-controls button:focus-visible {
-  background: #fff;
-  color: var(--signal);
+  background: var(--ink);
+  color: var(--paper);
 }
 
 .rail-controls button:disabled {
@@ -500,7 +499,7 @@ h1 span {
   width: 100%;
   margin-top: 0.75rem;
   padding-top: 0.8rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.3);
+  border-top: 1px solid rgba(32, 34, 35, 0.24);
 }
 
 .trend-sparkline-canvas {
@@ -539,8 +538,8 @@ h1 span {
 .featured-card .trend-tooltip {
   right: auto;
   left: 0;
-  background: #fff;
-  color: var(--signal);
+  background: var(--dark);
+  color: #fff;
 }
 
 .archive-third {
@@ -551,7 +550,7 @@ h1 span {
 
 .archive-third .section-number,
 .archive-third .eyebrow {
-  color: var(--signal);
+  color: var(--accent);
 }
 
 .archive-third .section-heading h2 span:last-child {
@@ -592,7 +591,7 @@ h1 span {
 }
 
 .load-status.is-error {
-  color: #b00014;
+  color: #7a5e61;
 }
 
 .table-shell {
@@ -633,7 +632,7 @@ tbody tr:last-child td {
 }
 
 tbody tr:hover {
-  background: rgba(23, 72, 212, 0.06);
+  background: rgba(32, 34, 35, 0.045);
 }
 
 tbody tr.is-updated {
@@ -642,7 +641,7 @@ tbody tr.is-updated {
 
 .rank-number {
   width: 5rem;
-  color: var(--signal);
+  color: var(--accent);
   font-weight: 750;
 }
 
@@ -658,7 +657,7 @@ tbody tr.is-updated {
 
 .show-link:hover,
 .show-link:focus-visible {
-  color: var(--signal);
+  color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 0.22rem;
 }
@@ -701,7 +700,7 @@ tbody tr.is-updated {
 }
 
 .method-copy a {
-  color: var(--signal);
+  color: var(--accent);
 }
 
 .show-drawer {
@@ -743,7 +742,7 @@ tbody tr.is-updated {
 }
 
 .drawer-header .eyebrow {
-  color: var(--signal);
+  color: var(--accent);
 }
 
 .drawer-header h2 {
@@ -783,7 +782,7 @@ tbody tr.is-updated {
 }
 
 .drawer-status.is-error {
-  color: #b00014;
+  color: #7a5e61;
 }
 
 .drawer-metrics {
@@ -834,7 +833,7 @@ tbody tr.is-updated {
   margin: 0;
   padding: 1rem 0;
   border-bottom: 1px solid var(--line);
-  color: var(--signal);
+  color: var(--accent);
 }
 
 .source-state > span {
@@ -842,7 +841,7 @@ tbody tr.is-updated {
   width: 0.55rem;
   height: 0.55rem;
   border-radius: 50%;
-  background: var(--signal);
+  background: var(--accent);
 }
 
 .source-state.is-stable {
@@ -967,7 +966,7 @@ footer a {
 }
 
 @keyframes row-update {
-  from { background: rgba(23, 72, 212, 0.16); }
+  from { background: rgba(32, 34, 35, 0.11); }
   to { background: transparent; }
 }
 
@@ -983,7 +982,7 @@ footer a {
 
 .archive-third :focus-visible,
 .show-drawer :focus-visible {
-  outline-color: var(--signal);
+  outline-color: var(--accent);
 }
 
 @media (max-width: 980px) {
