@@ -40,7 +40,8 @@ def test_root_serves_dashboard() -> None:
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
-    assert "See what viewers are moving toward." in response.text
+    assert "TV attention." in response.text
+    assert "Shows drawing the most attention." in response.text
     assert response.headers["x-content-type-options"] == "nosniff"
 
 

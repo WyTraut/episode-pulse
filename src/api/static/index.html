@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="EpisodePulse tracks changing television attention using frequently collected Trakt activity snapshots.">
-    <meta name="theme-color" content="#071312">
+    <meta name="theme-color" content="#f5f5f7">
     <title>EpisodePulse — Television attention, observed live</title>
     <link rel="stylesheet" href="/static/styles.css">
     <script src="/static/dashboard.js" defer></script>
@@ -13,66 +13,80 @@
     <a class="skip-link" href="#rankings">Skip to rankings</a>
 
     <header class="site-header">
-      <a class="brand" href="/" aria-label="EpisodePulse home">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span>EpisodePulse</span>
-      </a>
-      <div class="live-badge" id="live-badge">
-        <span class="live-dot" aria-hidden="true"></span>
-        <span id="live-label">Connecting</span>
+      <div class="header-inner">
+        <a class="brand" href="/" aria-label="EpisodePulse home">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>EpisodePulse</span>
+        </a>
+
+        <nav aria-label="Primary navigation">
+          <a href="#trending">Trending</a>
+          <a href="#rankings">Rankings</a>
+          <a href="#method">Method</a>
+        </nav>
+
+        <div class="live-badge" id="live-badge">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span id="live-label">Connecting</span>
+        </div>
       </div>
     </header>
 
     <main>
       <section class="hero" aria-labelledby="page-title">
-        <div class="hero-copy">
-          <p class="eyebrow">Television attention observatory</p>
-          <h1 id="page-title">See what viewers are moving toward.</h1>
-          <p class="hero-description">
+        <p class="eyebrow">Television attention observatory</p>
+        <h1 id="page-title">
+          <span>TV attention.</span>
+          <span class="hero-muted">See what audiences are moving toward, right now.</span>
+        </h1>
+        <div class="hero-footer">
+          <p>
             EpisodePulse captures recurring Trakt activity snapshots and preserves how television attention changes over time.
           </p>
-          <div class="hero-actions">
-            <a class="primary-action" href="#rankings">Explore the pulse</a>
-            <a class="text-action" href="/docs">View API docs</a>
-          </div>
+          <a href="#trending">Explore the current signal <span aria-hidden="true">↓</span></a>
         </div>
+      </section>
 
-        <article class="leader-card" aria-labelledby="leader-label">
-          <div class="leader-card-topline">
-            <p id="leader-label">Leading now</p>
-            <span class="rank-chip">#1</span>
+      <section class="pulse-facts" aria-label="Current snapshot information">
+        <article>
+          <span class="fact-symbol fact-symbol-live" aria-hidden="true"></span>
+          <div>
+            <p class="fact-label">Last checked</p>
+            <p class="fact-value" id="checked-at">—</p>
           </div>
-          <div class="leader-content" aria-live="polite">
-            <p class="leader-title" id="leader-title">Loading current signal…</p>
-            <p class="leader-count"><span id="leader-count">—</span> watchers</p>
+        </article>
+        <article>
+          <span class="fact-symbol">Δ</span>
+          <div>
+            <p class="fact-label">Signal changed</p>
+            <p class="fact-value" id="changed-at">—</p>
           </div>
-          <div class="signal-rule" aria-hidden="true">
-            <span></span><span></span><span></span><span></span><span></span>
+        </article>
+        <article>
+          <span class="fact-symbol">#</span>
+          <div>
+            <p class="fact-label">Shows observed</p>
+            <p class="fact-value" id="show-count">—</p>
           </div>
         </article>
       </section>
 
-      <section class="snapshot-strip" aria-label="Snapshot information">
-        <article>
-          <p class="metric-label">Last checked</p>
-          <p class="metric-value" id="checked-at">—</p>
-        </article>
-        <article>
-          <p class="metric-label">Signal changed</p>
-          <p class="metric-value" id="changed-at">—</p>
-        </article>
-        <article>
-          <p class="metric-label">Shows observed</p>
-          <p class="metric-value" id="show-count">—</p>
-        </article>
+      <section class="featured-section" id="trending" aria-labelledby="featured-title">
+        <div class="section-heading">
+          <h2 id="featured-title">
+            <span>Trending now.</span>
+            <span>Shows drawing the most attention.</span>
+          </h2>
+        </div>
+        <div class="featured-rail" id="featured-shows" aria-live="polite"></div>
       </section>
 
       <section class="rankings" id="rankings" aria-labelledby="rankings-title">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Current snapshot</p>
-            <h2 id="rankings-title">Top 20 trending shows</h2>
-          </div>
+        <div class="section-heading rankings-heading">
+          <h2 id="rankings-title">
+            <span>Full signal.</span>
+            <span>The top 20 in one view.</span>
+          </h2>
           <button class="refresh-button" id="refresh-button" type="button">
             Refresh data
           </button>
@@ -95,12 +109,17 @@
         </div>
       </section>
 
-      <section class="method-note" aria-labelledby="method-title">
-        <p class="eyebrow">Read the signal honestly</p>
-        <h2 id="method-title">Activity, not total viewership.</h2>
-        <p>
-          These rankings reflect activity from the Trakt community. They are frequently collected observations—not official audience measurements from streaming platforms or broadcasters.
-        </p>
+      <section class="method-card" id="method" aria-labelledby="method-title">
+        <div>
+          <p class="eyebrow">Read the signal honestly</p>
+          <h2 id="method-title">Activity, not total viewership.</h2>
+        </div>
+        <div class="method-copy">
+          <p>
+            These rankings reflect activity from the Trakt community. They are frequently collected observations—not official audience measurements from streaming platforms or broadcasters.
+          </p>
+          <a href="/docs">Explore the API documentation <span aria-hidden="true">↗</span></a>
+        </div>
       </section>
     </main>
 

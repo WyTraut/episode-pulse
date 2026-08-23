@@ -1,11 +1,10 @@
 const elements = {
   badge: document.querySelector("#live-badge"),
   liveLabel: document.querySelector("#live-label"),
-  leaderTitle: document.querySelector("#leader-title"),
-  leaderCount: document.querySelector("#leader-count"),
   checkedAt: document.querySelector("#checked-at"),
   changedAt: document.querySelector("#changed-at"),
   showCount: document.querySelector("#show-count"),
+  featuredShows: document.querySelector("#featured-shows"),
   loadStatus: document.querySelector("#load-status"),
   refreshButton: document.querySelector("#refresh-button"),
   rankingRows: document.querySelector("#ranking-rows"),
@@ -18,6 +17,7 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   hour: "numeric",
   minute: "2-digit",
 });
+const featuredTones = ["tone-dark", "tone-blue", "tone-violet", "tone-warm", "tone-green"];
 
 function formatDate(value) {
   if (!value) {
@@ -31,6 +31,53 @@ function formatDate(value) {
 function isStale(value) {
   const checkedAt = new Date(value).valueOf();
   return Number.isNaN(checkedAt) || Date.now() - checkedAt > 10 * 60 * 1000;
+}
+
+function createSignal(show, maximumWatchers) {
+  const signal = document.createElement("progress");
+  signal.max = maximumWatchers;
+  signal.value = show.watcher_count;
+  signal.setAttribute(
+    "aria-label",
+    `${show.title}: ${numberFormatter.format(show.watcher_count)} watchers`,
+  );
+  return signal;
+}
+
+function renderFeaturedShows(shows) {
+  const visibleShows = shows.slice(0, 5);
+  const maximumWatchers = Math.max(...visibleShows.map((show) => show.watcher_count), 1);
+  const fragment = document.createDocumentFragment();
+
+  visibleShows.forEach((show, index) => {
+    const card = document.createElement("article");
+    card.className = `featured-card ${featuredTones[index]}`;
+    card.dataset.rank = String(show.rank).padStart(2, "0");
+
+    const topline = document.createElement("div");
+    topline.className = "featured-topline";
+    const rank = document.createElement("p");
+    rank.textContent = `Rank ${String(show.rank).padStart(2, "0")}`;
+    const label = document.createElement("span");
+    label.textContent = index === 0 ? "Leading now" : "Trending";
+    topline.append(rank, label);
+
+    const content = document.createElement("div");
+    content.className = "featured-content";
+    const title = document.createElement("h3");
+    title.textContent = show.title;
+    const count = document.createElement("p");
+    count.className = "featured-count";
+    const strongCount = document.createElement("strong");
+    strongCount.textContent = numberFormatter.format(show.watcher_count);
+    count.append(strongCount, " watchers");
+    content.append(title, count, createSignal(show, maximumWatchers));
+
+    card.append(topline, content);
+    fragment.append(card);
+  });
+
+  elements.featuredShows.replaceChildren(fragment);
 }
 
 function renderRows(shows) {
@@ -55,14 +102,7 @@ function renderRows(shows) {
 
     const signalCell = document.createElement("td");
     signalCell.className = "signal-column";
-    const signal = document.createElement("progress");
-    signal.max = maximumWatchers;
-    signal.value = show.watcher_count;
-    signal.setAttribute(
-      "aria-label",
-      `${show.title}: ${numberFormatter.format(show.watcher_count)} watchers`,
-    );
-    signalCell.append(signal);
+    signalCell.append(createSignal(show, maximumWatchers));
 
     row.append(rankCell, titleCell, watcherCell, signalCell);
     fragment.append(row);
@@ -78,12 +118,10 @@ function renderSnapshot(data) {
     throw new Error("The latest snapshot contains no shows.");
   }
 
-  const leader = shows[0];
-  elements.leaderTitle.textContent = leader.title;
-  elements.leaderCount.textContent = numberFormatter.format(leader.watcher_count);
   elements.checkedAt.textContent = formatDate(data.checked_at);
   elements.changedAt.textContent = formatDate(data.changed_at);
   elements.showCount.textContent = numberFormatter.format(shows.length);
+  renderFeaturedShows(shows);
   renderRows(shows);
 
   elements.badge.classList.remove("is-error", "is-stale");
