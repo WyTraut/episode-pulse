@@ -98,11 +98,26 @@ function sparklineColor(onSignalBand) {
   return onSignalBand ? "#343837" : "#56605b";
 }
 
+function smoothSparklinePoints(rawPoints, smoothing = 0.16) {
+  let smoothedValue = null;
+
+  return rawPoints.map((value) => {
+    if (value === null || value === undefined) {
+      smoothedValue = null;
+      return null;
+    }
+    smoothedValue = smoothedValue === null
+      ? value
+      : smoothedValue + smoothing * (value - smoothedValue);
+    return smoothedValue;
+  });
+}
+
 function drawSparkline(canvas, rawPoints, onSignalBand) {
   const context = canvas.getContext("2d");
   const width = canvas.width;
   const height = canvas.height;
-  const points = Array.isArray(rawPoints) ? rawPoints : [];
+  const points = smoothSparklinePoints(Array.isArray(rawPoints) ? rawPoints : []);
   const values = points.filter((value) => value !== null && value !== undefined);
   context.clearRect(0, 0, width, height);
 
@@ -126,21 +141,23 @@ function drawSparkline(canvas, rawPoints, onSignalBand) {
   }
 
   const xForIndex = (index) => (index / Math.max(points.length - 1, 1)) * width;
-  const yForRank = (rank) => 4 + ((rank - minimum) / (maximum - minimum)) * (height - 8);
+  const yForValue = (value) => (
+    4 + (1 - (value - minimum) / (maximum - minimum)) * (height - 8)
+  );
   context.strokeStyle = sparklineColor(onSignalBand);
-  context.lineWidth = 2.5;
+  context.lineWidth = 2;
   context.lineJoin = "round";
   context.lineCap = "round";
   context.beginPath();
   let drawing = false;
 
-  points.forEach((rank, index) => {
-    if (rank === null || rank === undefined) {
+  points.forEach((value, index) => {
+    if (value === null || value === undefined) {
       drawing = false;
       return;
     }
     const x = xForIndex(index);
-    const y = yForRank(rank);
+    const y = yForValue(value);
     if (!drawing) {
       context.moveTo(x, y);
       drawing = true;
@@ -174,7 +191,7 @@ function createTrendSparkline(show, { onSignalBand = false, focusable = true } =
   tooltip.textContent = summary;
 
   sparkline.append(canvas, tooltip);
-  drawSparkline(canvas, show.trend_rank_points, onSignalBand);
+  drawSparkline(canvas, show.trend_watcher_points, onSignalBand);
   return sparkline;
 }
 
@@ -198,7 +215,7 @@ function renderFeaturedShows(shows, animateUpdate) {
     const rank = document.createElement("span");
     rank.textContent = `Rank ${String(show.rank).padStart(2, "0")}`;
     const trendLabel = document.createElement("span");
-    trendLabel.textContent = "24h rank";
+    trendLabel.textContent = "24h watchers";
     topline.append(rank, trendLabel);
 
     const content = document.createElement("span");

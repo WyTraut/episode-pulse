@@ -59,6 +59,8 @@ def test_static_dashboard_assets_are_available() -> None:
     assert 'fetch("/api/trending"' in javascript.text
     assert "`/api/shows/${showId}/history`" in javascript.text
     assert "createTrendSparkline" in javascript.text
+    assert "smoothSparklinePoints" in javascript.text
+    assert "show.trend_watcher_points" in javascript.text
     assert ".trend-sparkline:hover .trend-tooltip" in stylesheet.text
     assert "createSignal" not in javascript.text
 
