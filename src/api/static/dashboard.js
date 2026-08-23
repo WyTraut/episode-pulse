@@ -91,17 +91,32 @@ function createSignal(show, maximumWatchers) {
 }
 
 function movementDetails(show) {
-  if (show.is_new) {
-    return { label: "New", className: "movement-new" };
+  const rankChange = show.rank_change_6h ?? show.rank_change;
+  const rankRange = show.rank_range_6h ?? Math.abs(rankChange || 0);
+  const watcherChange = show.watcher_change_6h ?? show.watcher_change;
+  const usesHistory = show.rank_change_6h !== null && show.rank_change_6h !== undefined;
+  const suffix = usesHistory ? " · 6h" : "";
+
+  if (show.trend_status === "new" || (show.is_new && !usesHistory)) {
+    return { label: `New${suffix}`, className: "movement-new" };
   }
-  if (show.rank_change > 0) {
-    return { label: `↑ ${show.rank_change}`, className: "movement-up" };
+  if (show.trend_status === "up" || rankChange > 0) {
+    return { label: `↑ ${Math.abs(rankChange)}${suffix}`, className: "movement-up" };
   }
-  if (show.rank_change < 0) {
-    return { label: `↓ ${Math.abs(show.rank_change)}`, className: "movement-down" };
+  if (show.trend_status === "down" || rankChange < 0) {
+    return { label: `↓ ${Math.abs(rankChange)}${suffix}`, className: "movement-down" };
   }
-  if (show.rank_change === 0) {
-    return { label: "Steady", className: "movement-steady" };
+  if (show.trend_status === "mixed" && rankRange > 0) {
+    return { label: `↕ ${rankRange}${suffix}`, className: "movement-mixed" };
+  }
+  if (show.trend_status === "gaining" && watcherChange > 0) {
+    return { label: `Gaining${suffix}`, className: "movement-up" };
+  }
+  if (show.trend_status === "cooling" && watcherChange < 0) {
+    return { label: `Cooling${suffix}`, className: "movement-down" };
+  }
+  if (rankChange === 0) {
+    return { label: `Flat${suffix}`, className: "movement-steady" };
   }
   return { label: "Baseline", className: "movement-steady" };
 }
@@ -114,14 +129,22 @@ function createMovementBadge(show) {
   return badge;
 }
 
-function watcherChangeLabel(value) {
+function watcherChangeLabel(value, usesHistory = false) {
+  const suffix = usesHistory ? " · 6h" : "";
   if (value === null || value === undefined) {
     return "Awaiting comparison";
   }
   if (value === 0) {
-    return "No watcher change";
+    return `No watcher change${suffix}`;
   }
-  return `${signedNumberFormatter.format(value)} watchers`;
+  return `${signedNumberFormatter.format(value)} watchers${suffix}`;
+}
+
+function historicalWatcherChange(show) {
+  return {
+    value: show.watcher_change_6h ?? show.watcher_change,
+    usesHistory: show.watcher_change_6h !== null && show.watcher_change_6h !== undefined,
+  };
 }
 
 function renderFeaturedShows(shows, animateUpdate) {
@@ -157,7 +180,11 @@ function renderFeaturedShows(shows, animateUpdate) {
     strongCount.textContent = numberFormatter.format(show.watcher_count);
     const change = document.createElement("span");
     change.className = "watcher-change";
-    change.textContent = watcherChangeLabel(show.watcher_change);
+    const watcherMovement = historicalWatcherChange(show);
+    change.textContent = watcherChangeLabel(
+      watcherMovement.value,
+      watcherMovement.usesHistory,
+    );
     count.append(strongCount, " watchers", change);
     content.append(title, count, createSignal(show, maximumWatchers));
 
@@ -203,7 +230,11 @@ function renderRows(shows, animateUpdate) {
     movementCell.append(createMovementBadge(show));
     const watcherDelta = document.createElement("span");
     watcherDelta.className = "table-watcher-change";
-    watcherDelta.textContent = watcherChangeLabel(show.watcher_change);
+    const watcherMovement = historicalWatcherChange(show);
+    watcherDelta.textContent = watcherChangeLabel(
+      watcherMovement.value,
+      watcherMovement.usesHistory,
+    );
     movementCell.append(watcherDelta);
 
     const signalCell = document.createElement("td");
@@ -343,9 +374,15 @@ function renderShowHistory(document) {
   const points = document.points || [];
   elements.drawerTitle.textContent = show.title;
   elements.drawerRank.textContent = `#${show.current_rank}`;
-  elements.drawerRankChange.textContent = formatDelta(show.rank_change, "ranks");
+  elements.drawerRankChange.textContent = `${formatDelta(
+    show.rank_change_6h ?? show.rank_change,
+    "ranks",
+  )} over six hours`;
   elements.drawerWatchers.textContent = numberFormatter.format(show.current_watcher_count);
-  elements.drawerWatcherChange.textContent = formatDelta(show.watcher_change, "watchers");
+  elements.drawerWatcherChange.textContent = `${formatDelta(
+    show.watcher_change_6h ?? show.watcher_change,
+    "watchers",
+  )} over six hours`;
 
   const latestPoint = points[points.length - 1];
   const sourceStable = latestPoint && latestPoint.source_changed === false;

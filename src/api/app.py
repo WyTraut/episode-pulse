@@ -77,6 +77,115 @@ def _recent_trending_blob_client() -> BlobClient:
     )
 
 
+def enrich_current_with_history(
+    current_document: dict,
+    history_document: dict,
+) -> dict:
+    """Add six-hour movement fields without replacing five-minute deltas."""
+
+    snapshots = sorted(
+        history_document.get("snapshots", []),
+        key=lambda snapshot: (
+            snapshot.get("checked_at", ""),
+            snapshot.get("collection_id", ""),
+        ),
+    )
+    current_collection_id = current_document.get("collection_id")
+
+    if current_collection_id and not any(
+        snapshot.get("collection_id") == current_collection_id
+        for snapshot in snapshots
+    ):
+        snapshots.append(
+            {
+                "collection_id": current_collection_id,
+                "snapshot_hash": current_document.get("snapshot_hash"),
+                "checked_at": current_document.get("checked_at"),
+                "shows": [
+                    {
+                        "trakt_show_id": show["trakt_show_id"],
+                        "rank": show["rank"],
+                        "watcher_count": show["watcher_count"],
+                    }
+                    for show in current_document.get("shows", [])
+                ],
+            }
+        )
+        snapshots = snapshots[-history_document.get("retention_points", 72) :]
+
+    show_points: dict[str, list[dict]] = {}
+    shows_in_first_snapshot = {
+        str(show["trakt_show_id"])
+        for show in (snapshots[0].get("shows", []) if snapshots else [])
+    }
+
+    for snapshot in snapshots:
+        for show in snapshot.get("shows", []):
+            show_points.setdefault(str(show["trakt_show_id"]), []).append(show)
+
+    for show in current_document.get("shows", []):
+        show_id = str(show["trakt_show_id"])
+        points = show_points.get(show_id, [])
+        ranks = [point["rank"] for point in points]
+        watchers = [point["watcher_count"] for point in points]
+        first_point = points[0] if points else None
+        is_new_in_window = bool(snapshots) and show_id not in shows_in_first_snapshot
+
+        rank_change = (
+            first_point["rank"] - show["rank"] if first_point is not None else None
+        )
+        watcher_change = (
+            show["watcher_count"] - first_point["watcher_count"]
+            if first_point is not None
+            else None
+        )
+        rank_range = max(ranks) - min(ranks) if ranks else None
+        watcher_range = max(watchers) - min(watchers) if watchers else None
+
+        if is_new_in_window:
+            trend_status = "new"
+        elif rank_change is None or len(points) < 2:
+            trend_status = "baseline"
+        elif rank_change > 0:
+            trend_status = "up"
+        elif rank_change < 0:
+            trend_status = "down"
+        elif rank_range:
+            trend_status = "mixed"
+        elif watcher_change and watcher_change > 0:
+            trend_status = "gaining"
+        elif watcher_change and watcher_change < 0:
+            trend_status = "cooling"
+        elif watcher_range:
+            trend_status = "mixed"
+        else:
+            trend_status = "steady"
+
+        show.update(
+            {
+                "rank_change_6h": rank_change,
+                "watcher_change_6h": watcher_change,
+                "rank_range_6h": rank_range,
+                "watcher_range_6h": watcher_range,
+                "trend_point_count": len(points),
+                "trend_status": trend_status,
+                "is_new_in_window": is_new_in_window,
+            }
+        )
+
+    source_hashes = [snapshot.get("snapshot_hash") for snapshot in snapshots]
+    current_document["trend_window"] = {
+        "point_count": len(snapshots),
+        "first_checked_at": snapshots[0].get("checked_at") if snapshots else None,
+        "last_checked_at": snapshots[-1].get("checked_at") if snapshots else None,
+        "source_change_count": sum(
+            current_hash != previous_hash
+            for previous_hash, current_hash in zip(source_hashes, source_hashes[1:])
+        ),
+    }
+    return current_document
+
+
 def build_show_history_document(
     current_document: dict,
     history_document: dict,
@@ -131,8 +240,14 @@ def build_show_history_document(
             "title": current_show["title"],
             "current_rank": current_show["rank"],
             "rank_change": current_show.get("rank_change"),
+            "rank_change_6h": current_show.get("rank_change_6h"),
             "current_watcher_count": current_show["watcher_count"],
             "watcher_change": current_show.get("watcher_change"),
+            "watcher_change_6h": current_show.get("watcher_change_6h"),
+            "rank_range_6h": current_show.get("rank_range_6h"),
+            "watcher_range_6h": current_show.get("watcher_range_6h"),
+            "trend_status": current_show.get("trend_status"),
+            "is_new_in_window": current_show.get("is_new_in_window", False),
             "is_new": current_show.get("is_new", False),
         },
         "window": {
@@ -162,21 +277,36 @@ def current_trending() -> Response:
     """Return the latest compact projection while the source blob stays private."""
 
     try:
-        document = _current_trending_blob_client().download_blob().readall()
+        document = json.loads(
+            _current_trending_blob_client().download_blob().readall()
+        )
     except ResourceNotFoundError as error:
         raise HTTPException(
             status_code=503,
             detail="Trending data is not available yet.",
         ) from error
-    except AzureError as error:
+    except (AzureError, json.JSONDecodeError) as error:
         logger.exception("Unable to read the current trending projection.")
         raise HTTPException(
             status_code=502,
             detail="Trending data could not be retrieved.",
         ) from error
 
+    try:
+        history_document = json.loads(
+            _recent_trending_blob_client().download_blob().readall()
+        )
+        document = enrich_current_with_history(document, history_document)
+    except ResourceNotFoundError:
+        logger.info("Recent history is not initialized; returning current data only.")
+    except (AzureError, json.JSONDecodeError):
+        logger.warning(
+            "Recent history could not enrich current trends; returning current data only.",
+            exc_info=True,
+        )
+
     return Response(
-        content=document,
+        content=json.dumps(document, ensure_ascii=False, separators=(",", ":")),
         media_type="application/json",
         headers={"Cache-Control": "public, max-age=60"},
     )
@@ -193,8 +323,12 @@ def show_history(trakt_show_id: int) -> Response:
         history_document = json.loads(
             _recent_trending_blob_client().download_blob().readall()
         )
-        document = build_show_history_document(
+        enriched_current = enrich_current_with_history(
             current_document=current_document,
+            history_document=history_document,
+        )
+        document = build_show_history_document(
+            current_document=enriched_current,
             history_document=history_document,
             trakt_show_id=trakt_show_id,
         )

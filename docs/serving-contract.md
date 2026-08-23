@@ -37,6 +37,8 @@ Positive `rank_change` means the show moved upward. `watcher_change` is the curr
 
 Repeated source hashes remain as separate collections so flat periods honestly show that EpisodePulse checked the source and received unchanged data. Repeated collection IDs are ignored.
 
+The public API joins this history to the current document at read time. This keeps the original five-minute fields backward compatible while exposing six-hour net change, movement range, observation count, and trend status for every current show.
+
 ## Validation rules
 
 - `collection_size` must equal the number of items in `shows`.

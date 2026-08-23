@@ -71,6 +71,13 @@ def test_returns_current_trending_document(monkeypatch) -> None:
         "_current_trending_blob_client",
         lambda: fake_blob_client,
     )
+    monkeypatch.setattr(
+        api_module,
+        "_recent_trending_blob_client",
+        lambda: FakeBlobClient(
+            FakeDownload(error=ResourceNotFoundError("Missing"))
+        ),
+    )
 
     response = client.get("/api/trending")
 
@@ -154,6 +161,9 @@ def test_returns_show_history_with_explicit_gaps(monkeypatch) -> None:
     document = response.json()
     assert document["show"]["title"] == "Silo"
     assert document["show"]["rank_change"] == 1
+    assert document["show"]["rank_change_6h"] == 1
+    assert document["show"]["watcher_change_6h"] == 100
+    assert document["show"]["trend_status"] == "up"
     assert document["window"]["point_count"] == 3
     assert document["points"][0]["source_changed"] is None
     assert document["points"][1] == {
@@ -165,6 +175,80 @@ def test_returns_show_history_with_explicit_gaps(monkeypatch) -> None:
     }
     assert document["points"][2]["source_changed"] is True
     assert response.headers["cache-control"] == "public, max-age=60"
+
+
+def test_enriches_current_shows_from_the_full_history_window() -> None:
+    current = {
+        "collection_id": "three",
+        "checked_at": "2026-08-23T03:00:00Z",
+        "snapshot_hash": "c" * 64,
+        "shows": [
+            {"trakt_show_id": 1, "rank": 2, "watcher_count": 150},
+            {"trakt_show_id": 2, "rank": 5, "watcher_count": 150},
+            {"trakt_show_id": 3, "rank": 3, "watcher_count": 150},
+            {"trakt_show_id": 4, "rank": 1, "watcher_count": 200},
+            {"trakt_show_id": 5, "rank": 8, "watcher_count": 80},
+            {"trakt_show_id": 6, "rank": 6, "watcher_count": 60},
+        ],
+    }
+    history = {
+        "retention_points": 72,
+        "snapshots": [
+            {
+                "collection_id": "one",
+                "snapshot_hash": "a" * 64,
+                "checked_at": "2026-08-23T02:50:00Z",
+                "shows": [
+                    {"trakt_show_id": 1, "rank": 5, "watcher_count": 100},
+                    {"trakt_show_id": 2, "rank": 2, "watcher_count": 200},
+                    {"trakt_show_id": 3, "rank": 3, "watcher_count": 150},
+                    {"trakt_show_id": 4, "rank": 1, "watcher_count": 100},
+                    {"trakt_show_id": 6, "rank": 6, "watcher_count": 60},
+                ],
+            },
+            {
+                "collection_id": "two",
+                "snapshot_hash": "b" * 64,
+                "checked_at": "2026-08-23T02:55:00Z",
+                "shows": [
+                    {"trakt_show_id": 1, "rank": 3, "watcher_count": 125},
+                    {"trakt_show_id": 2, "rank": 4, "watcher_count": 175},
+                    {"trakt_show_id": 3, "rank": 1, "watcher_count": 175},
+                    {"trakt_show_id": 4, "rank": 1, "watcher_count": 150},
+                    {"trakt_show_id": 5, "rank": 10, "watcher_count": 50},
+                    {"trakt_show_id": 6, "rank": 6, "watcher_count": 60},
+                ],
+            },
+            {
+                "collection_id": "three",
+                "snapshot_hash": "c" * 64,
+                "checked_at": "2026-08-23T03:00:00Z",
+                "shows": current["shows"],
+            },
+        ],
+    }
+
+    document = api_module.enrich_current_with_history(current, history)
+    shows = {show["trakt_show_id"]: show for show in document["shows"]}
+
+    assert shows[1]["trend_status"] == "up"
+    assert shows[1]["rank_change_6h"] == 3
+    assert shows[1]["watcher_change_6h"] == 50
+    assert shows[2]["trend_status"] == "down"
+    assert shows[2]["rank_change_6h"] == -3
+    assert shows[3]["trend_status"] == "mixed"
+    assert shows[3]["rank_range_6h"] == 2
+    assert shows[4]["trend_status"] == "gaining"
+    assert shows[4]["watcher_change_6h"] == 100
+    assert shows[5]["trend_status"] == "new"
+    assert shows[5]["is_new_in_window"] is True
+    assert shows[6]["trend_status"] == "steady"
+    assert document["trend_window"] == {
+        "point_count": 3,
+        "first_checked_at": "2026-08-23T02:50:00Z",
+        "last_checked_at": "2026-08-23T03:00:00Z",
+        "source_change_count": 2,
+    }
 
 
 def test_show_history_returns_not_found_for_unknown_current_show(monkeypatch) -> None:

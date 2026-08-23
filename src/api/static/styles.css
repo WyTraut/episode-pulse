@@ -615,6 +615,11 @@ tbody tr.is-updated {
   color: #0055aa;
 }
 
+.movement-mixed {
+  color: #6e3cbc;
+  background: #f3edff;
+}
+
 .movement-steady {
   background: #e8e8ed;
   color: #6e6e73;
@@ -623,6 +628,7 @@ tbody tr.is-updated {
 .tone-dark .movement-up,
 .tone-dark .movement-down,
 .tone-dark .movement-new,
+.tone-dark .movement-mixed,
 .tone-dark .movement-steady {
   background: rgba(255, 255, 255, 0.14);
   color: #f5f5f7;
