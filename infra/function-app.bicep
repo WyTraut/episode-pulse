@@ -18,6 +18,9 @@ param functionDeploymentContainerName string
 @description('Existing EpisodePulse storage account name')
 param storageAccountName string
 
+@description('Container that stores dashboard-ready serving data')
+param servingContainerName string
+
 @description('Existing EpisodePulse Key Vault name')
 param keyVaultName string
 
@@ -212,6 +215,7 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2024-04-01' = {
 
     DATA_STORAGE_ACCOUNT_NAME: storageAccount.name
     RAW_CONTAINER_NAME: 'raw'
+    SERVING_CONTAINER_NAME: servingContainerName
 
     KEY_VAULT_URI: keyVault.properties.vaultUri
     TRAKT_CLIENT_ID_SECRET_NAME: 'trakt-client-id'

@@ -69,6 +69,7 @@ module functionAppModule './function-app.bicep' = {
     environment: environment
     storageBlobEndpoint: storageModule.outputs.blobEndpoint
     functionDeploymentContainerName: storageModule.outputs.functionDeploymentContainerName
+    servingContainerName: storageModule.outputs.servingContainerName
     eventHubNamespaceName: eventHubNamespaceName
     eventHubName: 'observations'
   }
