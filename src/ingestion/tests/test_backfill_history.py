@@ -1,6 +1,10 @@
 from datetime import datetime, timezone
 
-from backfill_history import build_history_from_snapshots, hourly_prefixes
+from backfill_history import (
+    build_history_from_snapshots,
+    hourly_prefixes,
+    normalize_raw_snapshot,
+)
 from transform import calculate_snapshot_hash
 
 
@@ -51,3 +55,16 @@ def test_backfill_builder_is_idempotent() -> None:
 
     assert len(first["snapshots"]) == 2
     assert second == first
+
+
+def test_normalizes_legacy_raw_snapshot_fields() -> None:
+    snapshot = make_raw_snapshot("legacy", "2026-08-22T20:00:00Z")
+    del snapshot["collection_size"]
+    del snapshot["snapshot_hash"]
+
+    normalized = normalize_raw_snapshot(snapshot)
+
+    assert normalized["collection_size"] == 1
+    assert normalized["snapshot_hash"] == calculate_snapshot_hash(
+        normalized["payload"]
+    )

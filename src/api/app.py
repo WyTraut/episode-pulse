@@ -14,6 +14,8 @@ from fastapi.staticfiles import StaticFiles
 
 CURRENT_TRENDING_BLOB_NAME = "trending/current.json"
 RECENT_TRENDING_BLOB_NAME = "trending/recent.json"
+DEFAULT_HISTORY_RETENTION_POINTS = 288
+SIX_HOUR_POINTS = 72
 STATIC_DIRECTORY = Path(__file__).parent / "static"
 
 logger = logging.getLogger("episodepulse.api")
@@ -81,7 +83,7 @@ def enrich_current_with_history(
     current_document: dict,
     history_document: dict,
 ) -> dict:
-    """Add six-hour movement fields without replacing five-minute deltas."""
+    """Add rolling-window trend fields without replacing five-minute deltas."""
 
     snapshots = sorted(
         history_document.get("snapshots", []),
@@ -111,36 +113,64 @@ def enrich_current_with_history(
                 ],
             }
         )
-        snapshots = snapshots[-history_document.get("retention_points", 72) :]
+        snapshots = snapshots[
+            -history_document.get(
+                "retention_points",
+                DEFAULT_HISTORY_RETENTION_POINTS,
+            ) :
+        ]
 
     show_points: dict[str, list[dict]] = {}
+    snapshot_show_maps = []
     shows_in_first_snapshot = {
         str(show["trakt_show_id"])
         for show in (snapshots[0].get("shows", []) if snapshots else [])
     }
 
     for snapshot in snapshots:
-        for show in snapshot.get("shows", []):
-            show_points.setdefault(str(show["trakt_show_id"]), []).append(show)
+        shows_by_id = {
+            str(show["trakt_show_id"]): show for show in snapshot.get("shows", [])
+        }
+        snapshot_show_maps.append(shows_by_id)
+        for show_id, show in shows_by_id.items():
+            show_points.setdefault(show_id, []).append(show)
+
+    def summarize(points: list[dict], current_show: dict) -> dict:
+        ranks = [point["rank"] for point in points]
+        watchers = [point["watcher_count"] for point in points]
+        first_point = points[0] if points else None
+
+        return {
+            "rank_change": (
+                first_point["rank"] - current_show["rank"]
+                if first_point is not None
+                else None
+            ),
+            "watcher_change": (
+                current_show["watcher_count"] - first_point["watcher_count"]
+                if first_point is not None
+                else None
+            ),
+            "rank_range": max(ranks) - min(ranks) if ranks else None,
+            "watcher_range": max(watchers) - min(watchers) if watchers else None,
+            "point_count": len(points),
+        }
 
     for show in current_document.get("shows", []):
         show_id = str(show["trakt_show_id"])
         points = show_points.get(show_id, [])
-        ranks = [point["rank"] for point in points]
-        watchers = [point["watcher_count"] for point in points]
-        first_point = points[0] if points else None
+        six_hour_points = [
+            shows_by_id[show_id]
+            for shows_by_id in snapshot_show_maps[-SIX_HOUR_POINTS:]
+            if show_id in shows_by_id
+        ]
+        window_metrics = summarize(points, show)
+        six_hour_metrics = summarize(six_hour_points, show)
         is_new_in_window = bool(snapshots) and show_id not in shows_in_first_snapshot
-
-        rank_change = (
-            first_point["rank"] - show["rank"] if first_point is not None else None
-        )
-        watcher_change = (
-            show["watcher_count"] - first_point["watcher_count"]
-            if first_point is not None
-            else None
-        )
-        rank_range = max(ranks) - min(ranks) if ranks else None
-        watcher_range = max(watchers) - min(watchers) if watchers else None
+        rank_change = window_metrics["rank_change"]
+        watcher_change = window_metrics["watcher_change"]
+        rank_range = window_metrics["rank_range"]
+        watcher_range = window_metrics["watcher_range"]
 
         if is_new_in_window:
             trend_status = "new"
@@ -163,19 +193,44 @@ def enrich_current_with_history(
 
         show.update(
             {
-                "rank_change_6h": rank_change,
-                "watcher_change_6h": watcher_change,
-                "rank_range_6h": rank_range,
-                "watcher_range_6h": watcher_range,
-                "trend_point_count": len(points),
+                "rank_change_6h": six_hour_metrics["rank_change"],
+                "watcher_change_6h": six_hour_metrics["watcher_change"],
+                "rank_range_6h": six_hour_metrics["rank_range"],
+                "watcher_range_6h": six_hour_metrics["watcher_range"],
+                "rank_change_window": rank_change,
+                "watcher_change_window": watcher_change,
+                "rank_range_window": rank_range,
+                "watcher_range_window": watcher_range,
+                "trend_point_count": window_metrics["point_count"],
                 "trend_status": trend_status,
                 "is_new_in_window": is_new_in_window,
             }
         )
 
+        if show.get("rank", DEFAULT_HISTORY_RETENTION_POINTS) <= 20:
+            show["trend_rank_points"] = [
+                shows_by_id.get(show_id, {}).get("rank")
+                for shows_by_id in snapshot_show_maps
+            ]
+            show["trend_watcher_points"] = [
+                shows_by_id.get(show_id, {}).get("watcher_count")
+                for shows_by_id in snapshot_show_maps
+            ]
+
     source_hashes = [snapshot.get("snapshot_hash") for snapshot in snapshots]
+    expected_interval_minutes = history_document.get(
+        "expected_interval_minutes",
+        5,
+    )
+    retention_points = history_document.get(
+        "retention_points",
+        DEFAULT_HISTORY_RETENTION_POINTS,
+    )
     current_document["trend_window"] = {
         "point_count": len(snapshots),
+        "retention_points": retention_points,
+        "expected_interval_minutes": expected_interval_minutes,
+        "hours": retention_points * expected_interval_minutes / 60,
         "first_checked_at": snapshots[0].get("checked_at") if snapshots else None,
         "last_checked_at": snapshots[-1].get("checked_at") if snapshots else None,
         "source_change_count": sum(
@@ -241,11 +296,15 @@ def build_show_history_document(
             "current_rank": current_show["rank"],
             "rank_change": current_show.get("rank_change"),
             "rank_change_6h": current_show.get("rank_change_6h"),
+            "rank_change_window": current_show.get("rank_change_window"),
             "current_watcher_count": current_show["watcher_count"],
             "watcher_change": current_show.get("watcher_change"),
             "watcher_change_6h": current_show.get("watcher_change_6h"),
+            "watcher_change_window": current_show.get("watcher_change_window"),
             "rank_range_6h": current_show.get("rank_range_6h"),
             "watcher_range_6h": current_show.get("watcher_range_6h"),
+            "rank_range_window": current_show.get("rank_range_window"),
+            "watcher_range_window": current_show.get("watcher_range_window"),
             "trend_status": current_show.get("trend_status"),
             "is_new_in_window": current_show.get("is_new_in_window", False),
             "is_new": current_show.get("is_new", False),
@@ -257,6 +316,12 @@ def build_show_history_document(
             "expected_interval_minutes": history_document.get(
                 "expected_interval_minutes", 5
             ),
+            "hours": history_document.get(
+                "retention_points",
+                DEFAULT_HISTORY_RETENTION_POINTS,
+            )
+            * history_document.get("expected_interval_minutes", 5)
+            / 60,
         },
         "points": points,
     }
@@ -314,7 +379,7 @@ def current_trending() -> Response:
 
 @app.get("/api/shows/{trakt_show_id}/history")
 def show_history(trakt_show_id: int) -> Response:
-    """Return six hours of observations for a show in the current collection."""
+    """Return 24 hours of observations for a show in the current collection."""
 
     try:
         current_document = json.loads(

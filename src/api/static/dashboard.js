@@ -49,6 +49,7 @@ let selectedHistory = null;
 let selectedMetric = "watcher_count";
 let chartPoints = [];
 let resizeFrame = null;
+let trendWindowHours = 24;
 
 function formatDate(value) {
   if (!value) {
@@ -64,92 +65,134 @@ function isStale(value) {
   return Number.isNaN(checkedAt) || Date.now() - checkedAt > 10 * 60 * 1000;
 }
 
-function createSignal(show, maximumWatchers) {
-  const signal = document.createElement("progress");
-  signal.max = maximumWatchers;
-  signal.value = reducedMotion.matches ? show.watcher_count : 0;
-  signal.setAttribute(
-    "aria-label",
-    `${show.title}: ${numberFormatter.format(show.watcher_count)} watchers`,
-  );
-
-  if (!reducedMotion.matches) {
-    window.requestAnimationFrame(() => {
-      const startedAt = performance.now();
-      const animate = (now) => {
-        const progress = Math.min((now - startedAt) / 600, 1);
-        signal.value = show.watcher_count * (1 - Math.pow(1 - progress, 3));
-        if (progress < 1) {
-          window.requestAnimationFrame(animate);
-        }
-      };
-      window.requestAnimationFrame(animate);
-    });
-  }
-
-  return signal;
-}
-
-function movementDetails(show) {
-  const rankChange = show.rank_change_6h ?? show.rank_change;
-  const rankRange = show.rank_range_6h ?? Math.abs(rankChange || 0);
-  const watcherChange = show.watcher_change_6h ?? show.watcher_change;
-  const usesHistory = show.rank_change_6h !== null && show.rank_change_6h !== undefined;
-  const suffix = usesHistory ? " · 6h" : "";
-
-  if (show.trend_status === "new" || (show.is_new && !usesHistory)) {
-    return { label: `New${suffix}`, className: "movement-new" };
-  }
-  if (show.trend_status === "up" || rankChange > 0) {
-    return { label: `↑ ${Math.abs(rankChange)}${suffix}`, className: "movement-up" };
-  }
-  if (show.trend_status === "down" || rankChange < 0) {
-    return { label: `↓ ${Math.abs(rankChange)}${suffix}`, className: "movement-down" };
-  }
-  if (show.trend_status === "mixed" && rankRange > 0) {
-    return { label: `↕ ${rankRange}${suffix}`, className: "movement-mixed" };
-  }
-  if (show.trend_status === "gaining" && watcherChange > 0) {
-    return { label: `Gaining${suffix}`, className: "movement-up" };
-  }
-  if (show.trend_status === "cooling" && watcherChange < 0) {
-    return { label: `Cooling${suffix}`, className: "movement-down" };
-  }
-  if (rankChange === 0) {
-    return { label: `Flat${suffix}`, className: "movement-steady" };
-  }
-  return { label: "Baseline", className: "movement-steady" };
-}
-
-function createMovementBadge(show) {
-  const movement = movementDetails(show);
-  const badge = document.createElement("span");
-  badge.className = `movement-badge ${movement.className}`;
-  badge.textContent = movement.label;
-  return badge;
-}
-
-function watcherChangeLabel(value, usesHistory = false) {
-  const suffix = usesHistory ? " · 6h" : "";
-  if (value === null || value === undefined) {
-    return "Awaiting comparison";
-  }
-  if (value === 0) {
-    return `No watcher change${suffix}`;
-  }
-  return `${signedNumberFormatter.format(value)} watchers${suffix}`;
-}
-
-function historicalWatcherChange(show) {
-  return {
-    value: show.watcher_change_6h ?? show.watcher_change,
-    usesHistory: show.watcher_change_6h !== null && show.watcher_change_6h !== undefined,
+function trendSummary(show) {
+  const rankChange = show.rank_change_window;
+  const watcherChange = show.watcher_change_window;
+  const hours = Math.round(trendWindowHours);
+  const statusLabels = {
+    up: "Rising",
+    down: "Falling",
+    gaining: "Gaining watchers",
+    cooling: "Cooling",
+    mixed: "Mixed movement",
+    new: "New to the ranking",
+    steady: "Flat",
+    baseline: "Building a baseline",
   };
+  const parts = [statusLabels[show.trend_status] || "Trend"];
+
+  if (rankChange !== null && rankChange !== undefined) {
+    const rankLabel = rankChange === 0
+      ? "rank unchanged"
+      : `${signedNumberFormatter.format(rankChange)} ranks`;
+    parts.push(rankLabel);
+  }
+  if (watcherChange !== null && watcherChange !== undefined) {
+    parts.push(`${signedNumberFormatter.format(watcherChange)} watchers`);
+  }
+  parts.push(`${hours}-hour window`);
+  return parts.join(" · ");
+}
+
+function sparklineColor(status, onSignalBand) {
+  if (onSignalBand) {
+    if (status === "down" || status === "cooling") {
+      return "#ffb0b4";
+    }
+    if (status === "mixed") {
+      return "#ffe27a";
+    }
+    return "#b8ff65";
+  }
+  if (status === "down" || status === "cooling") {
+    return "#c7182b";
+  }
+  if (status === "mixed") {
+    return "#846400";
+  }
+  return "#1748d4";
+}
+
+function drawSparkline(canvas, rawPoints, status, onSignalBand) {
+  const context = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  const points = Array.isArray(rawPoints) ? rawPoints : [];
+  const values = points.filter((value) => value !== null && value !== undefined);
+  context.clearRect(0, 0, width, height);
+
+  if (values.length < 2) {
+    context.strokeStyle = onSignalBand ? "rgba(255,255,255,0.45)" : "rgba(23,23,23,0.3)";
+    context.setLineDash([4, 4]);
+    context.beginPath();
+    context.moveTo(0, height / 2);
+    context.lineTo(width, height / 2);
+    context.stroke();
+    return;
+  }
+
+  let minimum = Math.min(...values);
+  let maximum = Math.max(...values);
+  if (minimum === maximum) {
+    minimum -= 1;
+    maximum += 1;
+  }
+
+  const xForIndex = (index) => (index / Math.max(points.length - 1, 1)) * width;
+  const yForRank = (rank) => 4 + ((rank - minimum) / (maximum - minimum)) * (height - 8);
+  context.strokeStyle = sparklineColor(status, onSignalBand);
+  context.lineWidth = 2.5;
+  context.lineJoin = "round";
+  context.lineCap = "round";
+  context.beginPath();
+  let drawing = false;
+
+  points.forEach((rank, index) => {
+    if (rank === null || rank === undefined) {
+      drawing = false;
+      return;
+    }
+    const x = xForIndex(index);
+    const y = yForRank(rank);
+    if (!drawing) {
+      context.moveTo(x, y);
+      drawing = true;
+    } else {
+      context.lineTo(x, y);
+    }
+  });
+  context.stroke();
+}
+
+function createTrendSparkline(show, { onSignalBand = false, focusable = true } = {}) {
+  const summary = trendSummary(show);
+  const sparkline = document.createElement("span");
+  sparkline.className = `trend-sparkline trend-${show.trend_status || "baseline"}`;
+  sparkline.setAttribute("role", "img");
+  sparkline.setAttribute("aria-label", summary);
+  sparkline.title = summary;
+  if (focusable) {
+    sparkline.tabIndex = 0;
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.className = "trend-sparkline-canvas";
+  canvas.width = 168;
+  canvas.height = 46;
+  canvas.setAttribute("aria-hidden", "true");
+
+  const tooltip = document.createElement("span");
+  tooltip.className = "trend-tooltip";
+  tooltip.setAttribute("role", "tooltip");
+  tooltip.textContent = summary;
+
+  sparkline.append(canvas, tooltip);
+  drawSparkline(canvas, show.trend_rank_points, show.trend_status, onSignalBand);
+  return sparkline;
 }
 
 function renderFeaturedShows(shows, animateUpdate) {
   const visibleShows = shows.slice(0, 5);
-  const maximumWatchers = Math.max(...visibleShows.map((show) => show.watcher_count), 1);
   const fragment = document.createDocumentFragment();
 
   visibleShows.forEach((show, index) => {
@@ -161,13 +204,15 @@ function renderFeaturedShows(shows, animateUpdate) {
     }
     card.dataset.rank = String(show.rank).padStart(2, "0");
     card.dataset.showId = String(show.trakt_show_id);
-    card.setAttribute("aria-label", `Open six-hour history for ${show.title}`);
+    card.setAttribute("aria-label", `Open 24-hour history for ${show.title}. ${trendSummary(show)}`);
 
     const topline = document.createElement("span");
     topline.className = "featured-topline";
     const rank = document.createElement("span");
     rank.textContent = `Rank ${String(show.rank).padStart(2, "0")}`;
-    topline.append(rank, createMovementBadge(show));
+    const trendLabel = document.createElement("span");
+    trendLabel.textContent = "24h rank";
+    topline.append(rank, trendLabel);
 
     const content = document.createElement("span");
     content.className = "featured-content";
@@ -178,15 +223,12 @@ function renderFeaturedShows(shows, animateUpdate) {
     count.className = "featured-count";
     const strongCount = document.createElement("strong");
     strongCount.textContent = numberFormatter.format(show.watcher_count);
-    const change = document.createElement("span");
-    change.className = "watcher-change";
-    const watcherMovement = historicalWatcherChange(show);
-    change.textContent = watcherChangeLabel(
-      watcherMovement.value,
-      watcherMovement.usesHistory,
+    count.append(strongCount, " watchers");
+    content.append(
+      title,
+      count,
+      createTrendSparkline(show, { onSignalBand: true, focusable: false }),
     );
-    count.append(strongCount, " watchers", change);
-    content.append(title, count, createSignal(show, maximumWatchers));
 
     card.append(topline, content);
     card.addEventListener("click", () => openShowHistory(show.trakt_show_id, show.title));
@@ -199,7 +241,6 @@ function renderFeaturedShows(shows, animateUpdate) {
 
 function renderRows(shows, animateUpdate) {
   const visibleShows = shows.slice(0, 20);
-  const maximumWatchers = Math.max(...visibleShows.map((show) => show.watcher_count), 1);
   const fragment = document.createDocumentFragment();
 
   visibleShows.forEach((show) => {
@@ -217,7 +258,7 @@ function renderRows(shows, animateUpdate) {
     showButton.type = "button";
     showButton.className = "show-link";
     showButton.textContent = show.title;
-    showButton.setAttribute("aria-label", `Open six-hour history for ${show.title}`);
+    showButton.setAttribute("aria-label", `Open 24-hour history for ${show.title}`);
     showButton.addEventListener("click", () => openShowHistory(show.trakt_show_id, show.title));
     titleCell.append(showButton);
 
@@ -227,21 +268,9 @@ function renderRows(shows, animateUpdate) {
 
     const movementCell = document.createElement("td");
     movementCell.className = "movement-column";
-    movementCell.append(createMovementBadge(show));
-    const watcherDelta = document.createElement("span");
-    watcherDelta.className = "table-watcher-change";
-    const watcherMovement = historicalWatcherChange(show);
-    watcherDelta.textContent = watcherChangeLabel(
-      watcherMovement.value,
-      watcherMovement.usesHistory,
-    );
-    movementCell.append(watcherDelta);
+    movementCell.append(createTrendSparkline(show));
 
-    const signalCell = document.createElement("td");
-    signalCell.className = "signal-column";
-    signalCell.append(createSignal(show, maximumWatchers));
-
-    row.append(rankCell, titleCell, watcherCell, movementCell, signalCell);
+    row.append(rankCell, titleCell, watcherCell, movementCell);
     fragment.append(row);
   });
 
@@ -256,6 +285,7 @@ function renderSnapshot(data) {
   }
 
   const isNewCollection = lastCollectionId !== data.collection_id;
+  trendWindowHours = data.trend_window?.hours || 24;
   elements.checkedAt.textContent = formatDate(data.checked_at);
   elements.changedAt.textContent = formatDate(data.changed_at);
   elements.showCount.textContent = numberFormatter.format(shows.length);
@@ -374,15 +404,16 @@ function renderShowHistory(document) {
   const points = document.points || [];
   elements.drawerTitle.textContent = show.title;
   elements.drawerRank.textContent = `#${show.current_rank}`;
+  const historyHours = Math.round(document.window?.hours || 24);
   elements.drawerRankChange.textContent = `${formatDelta(
-    show.rank_change_6h ?? show.rank_change,
+    show.rank_change_window ?? show.rank_change,
     "ranks",
-  )} over six hours`;
+  )} over ${historyHours} hours`;
   elements.drawerWatchers.textContent = numberFormatter.format(show.current_watcher_count);
   elements.drawerWatcherChange.textContent = `${formatDelta(
-    show.watcher_change_6h ?? show.watcher_change,
+    show.watcher_change_window ?? show.watcher_change,
     "watchers",
-  )} over six hours`;
+  )} over ${historyHours} hours`;
 
   const latestPoint = points[points.length - 1];
   const sourceStable = latestPoint && latestPoint.source_changed === false;

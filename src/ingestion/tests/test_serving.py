@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from azure.core.exceptions import ResourceNotFoundError
@@ -200,19 +201,23 @@ def test_recent_history_ignores_duplicate_collection_ids() -> None:
 
 def test_recent_history_orders_and_caps_collections() -> None:
     history = None
-    for index in reversed(range(75)):
+    start = datetime(2026, 8, 22, tzinfo=timezone.utc)
+    for index in reversed(range(291)):
+        observed_at = (start + timedelta(minutes=index * 5)).isoformat().replace(
+            "+00:00", "Z"
+        )
         history = build_recent_trending_document(
             snapshot=make_snapshot(
-                collection_id=f"collection-{index:02d}",
-                observed_at=f"2026-08-23T{index // 12:02d}:{(index % 12) * 5:02d}:00Z",
+                collection_id=f"collection-{index:03d}",
+                observed_at=observed_at,
             ),
             observations=make_observations(),
             previous_document=history,
         )
 
-    assert len(history["snapshots"]) == 72
-    assert history["snapshots"][0]["collection_id"] == "collection-03"
-    assert history["snapshots"][-1]["collection_id"] == "collection-74"
+    assert len(history["snapshots"]) == 288
+    assert history["snapshots"][0]["collection_id"] == "collection-003"
+    assert history["snapshots"][-1]["collection_id"] == "collection-290"
 
 
 class FakeDownload:

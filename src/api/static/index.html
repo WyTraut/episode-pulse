@@ -115,8 +115,7 @@
                     <th scope="col">Rank</th>
                     <th scope="col">Show</th>
                     <th scope="col" class="number-column">Watchers</th>
-                    <th scope="col" class="movement-column">Six-hour trend</th>
-                    <th scope="col" class="signal-column">Relative signal</th>
+                    <th scope="col" class="movement-column">24-hour trend</th>
                   </tr>
                 </thead>
                 <tbody id="ranking-rows"></tbody>
@@ -144,7 +143,7 @@
       <div class="drawer-shell">
         <header class="drawer-header">
           <div>
-            <p class="eyebrow">Six-hour movement</p>
+            <p class="eyebrow">24-hour movement</p>
             <h2 id="drawer-title">Show history</h2>
           </div>
           <button class="drawer-close" id="drawer-close" type="button" aria-label="Close show history">×</button>
@@ -183,7 +182,7 @@
               </div>
             </div>
             <div class="chart-shell">
-              <canvas id="history-chart" width="720" height="320" aria-label="Recent watcher activity chart"></canvas>
+              <canvas id="history-chart" width="720" height="320" aria-label="24-hour watcher activity chart"></canvas>
             </div>
             <p class="chart-tooltip" id="chart-tooltip" aria-live="polite">Move across the chart to inspect a point.</p>
             <p class="chart-range" id="chart-range">—</p>

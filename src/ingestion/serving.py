@@ -7,7 +7,7 @@ from azure.storage.blob import BlobServiceClient, ContentSettings
 
 CURRENT_TRENDING_BLOB_NAME = "trending/current.json"
 RECENT_TRENDING_BLOB_NAME = "trending/recent.json"
-HISTORY_RETENTION_POINTS = 72
+HISTORY_RETENTION_POINTS = 288
 
 
 def build_current_trending_document(
@@ -89,7 +89,7 @@ def build_recent_trending_document(
     previous_document: dict[str, Any] | None = None,
     retention_points: int = HISTORY_RETENTION_POINTS,
 ) -> dict[str, Any]:
-    """Append one collection to the compact rolling dashboard history."""
+    """Append one collection to the compact rolling 24-hour dashboard history."""
 
     if len(observations) != snapshot["collection_size"]:
         raise ValueError("History observations do not match the collection size.")

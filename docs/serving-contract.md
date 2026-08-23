@@ -33,11 +33,11 @@ Positive `rank_change` means the show moved upward. `watcher_change` is the curr
 
 ## Recent history document
 
-`serving/trending/recent.json` retains the latest 72 collections, representing approximately six hours at the expected five-minute interval. Each history snapshot contains `collection_id`, `snapshot_hash`, `checked_at`, and compact show measurements containing `trakt_show_id`, `rank`, and `watcher_count`.
+`serving/trending/recent.json` retains the latest 288 collections, representing approximately 24 hours at the expected five-minute interval. Each history snapshot contains `collection_id`, `snapshot_hash`, `checked_at`, and compact show measurements containing `trakt_show_id`, `rank`, and `watcher_count`.
 
 Repeated source hashes remain as separate collections so flat periods honestly show that EpisodePulse checked the source and received unchanged data. Repeated collection IDs are ignored.
 
-The public API joins this history to the current document at read time. This keeps the original five-minute fields backward compatible while exposing six-hour net change, movement range, observation count, and trend status for every current show.
+The public API joins this history to the current document at read time. This keeps the original five-minute and six-hour fields backward compatible while exposing full-window net change, movement range, observation count, trend status, and top-20 sparkline points.
 
 ## Validation rules
 
@@ -45,5 +45,5 @@ The public API joins this history to the current document at read time. This kee
 - Shows must be ordered by ascending `rank`.
 - `checked_at` updates after every successful API collection.
 - `changed_at` changes only when `snapshot_hash` changes.
-- History must remain chronologically ordered and contain at most 72 collections.
+- History must remain chronologically ordered and contain at most 288 collections.
 - The document must remain private and must not contain Trakt user identities or credentials.

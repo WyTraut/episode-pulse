@@ -58,6 +58,9 @@ def test_static_dashboard_assets_are_available() -> None:
     assert javascript.status_code == 200
     assert 'fetch("/api/trending"' in javascript.text
     assert "`/api/shows/${showId}/history`" in javascript.text
+    assert "createTrendSparkline" in javascript.text
+    assert ".trend-sparkline:hover .trend-tooltip" in stylesheet.text
+    assert "createSignal" not in javascript.text
 
 
 def test_returns_current_trending_document(monkeypatch) -> None:
@@ -166,6 +169,8 @@ def test_returns_show_history_with_explicit_gaps(monkeypatch) -> None:
     assert document["show"]["rank_change"] == 1
     assert document["show"]["rank_change_6h"] == 1
     assert document["show"]["watcher_change_6h"] == 100
+    assert document["show"]["rank_change_window"] == 1
+    assert document["show"]["watcher_change_window"] == 100
     assert document["show"]["trend_status"] == "up"
     assert document["window"]["point_count"] == 3
     assert document["points"][0]["source_changed"] is None
@@ -237,6 +242,9 @@ def test_enriches_current_shows_from_the_full_history_window() -> None:
     assert shows[1]["trend_status"] == "up"
     assert shows[1]["rank_change_6h"] == 3
     assert shows[1]["watcher_change_6h"] == 50
+    assert shows[1]["rank_change_window"] == 3
+    assert shows[1]["trend_rank_points"] == [5, 3, 2]
+    assert shows[1]["trend_watcher_points"] == [100, 125, 150]
     assert shows[2]["trend_status"] == "down"
     assert shows[2]["rank_change_6h"] == -3
     assert shows[3]["trend_status"] == "mixed"
@@ -248,6 +256,9 @@ def test_enriches_current_shows_from_the_full_history_window() -> None:
     assert shows[6]["trend_status"] == "steady"
     assert document["trend_window"] == {
         "point_count": 3,
+        "retention_points": 72,
+        "expected_interval_minutes": 5,
+        "hours": 6.0,
         "first_checked_at": "2026-08-23T02:50:00Z",
         "last_checked_at": "2026-08-23T03:00:00Z",
         "source_change_count": 2,

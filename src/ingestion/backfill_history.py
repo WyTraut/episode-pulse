@@ -1,4 +1,4 @@
-"""Build the six-hour public serving history from immutable raw snapshots."""
+"""Build the 24-hour public serving history from immutable raw snapshots."""
 
 import argparse
 import json
@@ -13,7 +13,7 @@ from serving import (
     RECENT_TRENDING_BLOB_NAME,
     build_recent_trending_document,
 )
-from transform import transform_trending_snapshot
+from transform import calculate_snapshot_hash, transform_trending_snapshot
 
 
 def parse_utc(value: str) -> datetime:
@@ -35,14 +35,29 @@ def hourly_prefixes(start: datetime, end: datetime) -> list[str]:
     return prefixes
 
 
+def normalize_raw_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """Fill derived fields omitted by the earliest raw snapshot schema."""
+
+    normalized = dict(snapshot)
+    payload = normalized.get("payload")
+    if not isinstance(payload, list) or not payload:
+        raise ValueError("Raw snapshot payload must be a non-empty list.")
+
+    normalized.setdefault("collection_size", len(payload))
+    normalized.setdefault("snapshot_hash", calculate_snapshot_hash(payload))
+    return normalized
+
+
 def build_history_from_snapshots(
     snapshots: Iterable[dict[str, Any]],
     previous_document: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     history_document = previous_document
 
+    normalized_snapshots = [normalize_raw_snapshot(snapshot) for snapshot in snapshots]
+
     for snapshot in sorted(
-        snapshots,
+        normalized_snapshots,
         key=lambda item: (item["observed_at"], item["collection_id"]),
     ):
         history_document = build_recent_trending_document(
@@ -77,8 +92,10 @@ def backfill(
 
     for prefix in hourly_prefixes(start, end):
         for blob in raw_container.list_blobs(name_starts_with=prefix):
-            snapshot = json.loads(
-                raw_container.get_blob_client(blob.name).download_blob().readall()
+            snapshot = normalize_raw_snapshot(
+                json.loads(
+                    raw_container.get_blob_client(blob.name).download_blob().readall()
+                )
             )
             observed_at = parse_utc(snapshot["observed_at"])
             if start <= observed_at <= end:
@@ -114,7 +131,7 @@ def main() -> None:
     parser.add_argument("--account-name", required=True)
     parser.add_argument("--raw-container", default="raw")
     parser.add_argument("--serving-container", default="serving")
-    parser.add_argument("--hours", type=int, default=6)
+    parser.add_argument("--hours", type=int, default=24)
     args = parser.parse_args()
 
     document = backfill(
