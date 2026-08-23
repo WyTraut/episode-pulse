@@ -40,6 +40,14 @@
         "queryId": "bbfc5434-accb-4599-a058-2d7feeaa547d"
       },
       "visualOptions": {
+        "table__enableRenderLinks": true,
+        "colorRulesDisabled": true,
+        "crossFilter": [],
+        "crossFilterDisabled": false,
+        "drillthroughDisabled": false,
+        "drillthrough": [],
+        "table__renderLinks": [],
+        "colorRules": [],
         "selectedDataOnLoad": {
           "all": true,
           "limit": 10
@@ -180,7 +188,7 @@
         "kind": "inline",
         "dataSourceId": "711de3cd-b6e2-42e8-82cd-5287c85b2350"
       },
-      "text": "let LatestTime = toscalar(\n    observations\n    | summarize max(ingested_at)\n);\nlet PreviousTime = toscalar(\n    observations\n    | where ingested_at < LatestTime\n    | summarize max(ingested_at)\n);\nlet CurrentSnapshot =\n    observations\n    | where ingested_at == LatestTime\n    | project\n        trakt_show_id,\n        ShowTitle = ['title'],\n        CurrentRank = ['rank'],\n        CurrentWatchers = watcher_count;\nlet PreviousSnapshot =\n    observations\n    | where ingested_at == PreviousTime\n    | project\n        trakt_show_id,\n        PreviousRank = ['rank'],\n        PreviousWatchers = watcher_count;\nCurrentSnapshot\n| join kind=leftouter PreviousSnapshot on trakt_show_id\n| extend\n    WatcherChange = CurrentWatchers - PreviousWatchers,\n    RankChange = PreviousRank - CurrentRank\n| top 10 by WatcherChange desc\n| project ShowTitle, CurrentRank, CurrentWatchers, WatcherChange, RankChange",
+      "text": "let ChangedCollections = materialize(\n    observations\n    | where schema_version == \"1.1\"\n    | summarize\n        IngestedAt = max(ingested_at),\n        SnapshotHash = take_any(snapshot_hash)\n        by collection_id\n    | order by IngestedAt asc\n    | serialize\n    | extend PreviousHash = prev(SnapshotHash)\n    | where isempty(PreviousHash) or SnapshotHash != PreviousHash\n);\nlet LatestCollection = toscalar(\n    ChangedCollections\n    | top 1 by IngestedAt desc\n    | project collection_id\n);\nlet PreviousCollection = toscalar(\n    ChangedCollections\n    | where collection_id != LatestCollection\n    | top 1 by IngestedAt desc\n    | project collection_id\n);\nlet CurrentSnapshot =\n    observations\n    | where collection_id == LatestCollection\n    | project\n        trakt_show_id,\n        ShowTitle = ['title'],\n        CurrentRank = ['rank'],\n        CurrentWatchers = watcher_count;\nlet PreviousSnapshot =\n    observations\n    | where collection_id == PreviousCollection\n    | project\n        trakt_show_id,\n        PreviousRank = ['rank'],\n        PreviousWatchers = watcher_count;\nCurrentSnapshot\n| join kind=inner PreviousSnapshot on trakt_show_id\n| extend\n    WatcherChange = CurrentWatchers - PreviousWatchers,\n    RankChange = PreviousRank - CurrentRank\n| top 10 by WatcherChange desc\n| project ShowTitle, CurrentRank, CurrentWatchers, WatcherChange, RankChange",
       "id": "bbfc5434-accb-4599-a058-2d7feeaa547d",
       "usedVariables": []
     },
