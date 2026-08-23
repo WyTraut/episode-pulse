@@ -36,6 +36,15 @@ resource rawContainer 'Microsoft.Storage/storageAccounts/blobServices/containers
   }
 }
 
+// Store compact, dashboard-ready data separately from immutable raw responses.
+resource servingContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'serving'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
 // Store deployed Azure Function code packages.
 resource functionDeploymentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   parent: blobService
@@ -47,4 +56,5 @@ resource functionDeploymentContainer 'Microsoft.Storage/storageAccounts/blobServ
 
 output storageAccountId string = storageAccount.id
 output blobEndpoint string = storageAccount.properties.primaryEndpoints.blob
+output servingContainerName string = servingContainer.name
 output functionDeploymentContainerName string = functionDeploymentContainer.name
