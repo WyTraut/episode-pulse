@@ -42,6 +42,9 @@ def test_root_serves_dashboard() -> None:
     assert response.headers["content-type"].startswith("text/html")
     assert "TV attention." in response.text
     assert "Shows drawing the most attention." in response.text
+    assert 'class="page-third intro-third"' in response.text
+    assert 'class="page-third signal-third"' in response.text
+    assert 'class="page-third archive-third"' in response.text
     assert '<dialog class="show-drawer"' in response.text
     assert '<canvas id="history-chart"' in response.text
     assert response.headers["x-content-type-options"] == "nosniff"
