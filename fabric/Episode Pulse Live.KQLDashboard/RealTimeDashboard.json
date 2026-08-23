@@ -1,0 +1,207 @@
+{
+  "schema_version": 81,
+  "flavor": "RTDashboard_Regular",
+  "tiles": [
+    {
+      "id": "e361ae95-fb3b-43bb-8524-0e856d7d916a",
+      "title": "Latest Trending Shows",
+      "visualType": "table",
+      "pageId": "2bec727a-77ba-454d-8799-7f2ac5ea92ab",
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 9,
+        "height": 10
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "feeff3bf-d9d5-4a0f-8194-58ff956b1920"
+      },
+      "visualOptions": {
+        "selectedDataOnLoad": {
+          "all": true,
+          "limit": 10
+        }
+      }
+    },
+    {
+      "id": "d9dca593-0b92-4817-918e-484ae86b0d80",
+      "title": "Fastest Rising Shows",
+      "visualType": "table",
+      "pageId": "2bec727a-77ba-454d-8799-7f2ac5ea92ab",
+      "layout": {
+        "x": 9,
+        "y": 0,
+        "width": 9,
+        "height": 10
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "bbfc5434-accb-4599-a058-2d7feeaa547d"
+      },
+      "visualOptions": {
+        "selectedDataOnLoad": {
+          "all": true,
+          "limit": 10
+        }
+      }
+    },
+    {
+      "id": "a8dfc5d3-1506-4a0b-a80c-920646944fe3",
+      "title": "Watcher Activity Over Time",
+      "visualType": "timechart",
+      "pageId": "2bec727a-77ba-454d-8799-7f2ac5ea92ab",
+      "layout": {
+        "x": 0,
+        "y": 10,
+        "width": 18,
+        "height": 7
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "1b254fbc-f4dc-4b69-9675-d9db1e0fdc3d"
+      },
+      "visualOptions": {
+        "multipleYAxes": {
+          "base": {
+            "id": "-1",
+            "label": "",
+            "columns": [],
+            "yAxisMaximumValue": null,
+            "yAxisMinimumValue": null,
+            "yAxisScale": "linear",
+            "horizontalLines": []
+          },
+          "additional": [],
+          "showMultiplePanels": false
+        },
+        "seriesColors": {},
+        "hideLegend": false,
+        "legendLocation": "bottom",
+        "xColumnTitle": "",
+        "xColumn": null,
+        "yColumns": null,
+        "seriesColumns": null,
+        "xAxisScale": "linear",
+        "verticalLine": "",
+        "crossFilterDisabled": false,
+        "drillthroughDisabled": false,
+        "forceAxisTicks": false,
+        "crossFilter": [],
+        "drillthrough": []
+      }
+    },
+    {
+      "id": "8b687ac9-f59c-4931-82ba-8d23ff3bdab8",
+      "title": "Pipeline Status",
+      "visualType": "multistat",
+      "pageId": "2bec727a-77ba-454d-8799-7f2ac5ea92ab",
+      "layout": {
+        "x": 0,
+        "y": 17,
+        "width": 18,
+        "height": 6
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "20caa78e-6083-4bcb-867f-58e14c68cfd8"
+      },
+      "visualOptions": {
+        "multiStat__textSize": "auto",
+        "multiStat__valueColumn": null,
+        "colorRulesDisabled": false,
+        "multiStat__displayOrientation": "horizontal",
+        "multiStat__labelColumn": null,
+        "multiStat__slot": {
+          "width": 4,
+          "height": 2
+        },
+        "colorRules": []
+      }
+    }
+  ],
+  "baseQueries": [],
+  "parameters": [
+    {
+      "kind": "duration",
+      "id": "a1c867c3-3bb4-443e-9c96-0baf8befa120",
+      "displayName": "Time range",
+      "description": "",
+      "beginVariableName": "_startTime",
+      "endVariableName": "_endTime",
+      "defaultValue": {
+        "kind": "dynamic",
+        "count": 1,
+        "unit": "hours"
+      },
+      "showOnPages": {
+        "kind": "all"
+      }
+    }
+  ],
+  "dataSources": [
+    {
+      "id": "711de3cd-b6e2-42e8-82cd-5287c85b2350",
+      "kind": "kusto-trident",
+      "name": "eventhouse-epulse-dev",
+      "clusterUri": "",
+      "databaseArtifactId": "4b0a85fd-b68e-41dd-b66a-2ffd8dfeb917",
+      "database": "8dfeb917-2ffd-b66a-41dd-b68e4b0a85fd",
+      "workspace": "00000000-0000-0000-0000-000000000000"
+    },
+    {
+      "kind": "kusto-trident",
+      "name": "eventhouse-epulse-dev-2",
+      "clusterUri": "",
+      "databaseArtifactId": "4b0a85fd-b68e-41dd-b66a-2ffd8dfeb917",
+      "database": "8dfeb917-2ffd-b66a-41dd-b68e4b0a85fd",
+      "workspace": "00000000-0000-0000-0000-000000000000",
+      "id": "c501223d-0073-4e87-9298-74bc1223191e"
+    }
+  ],
+  "pages": [
+    {
+      "name": "Page 1",
+      "id": "2bec727a-77ba-454d-8799-7f2ac5ea92ab"
+    }
+  ],
+  "queries": [
+    {
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "711de3cd-b6e2-42e8-82cd-5287c85b2350"
+      },
+      "text": "let LatestIngestion = toscalar(\n    observations\n    | summarize max(ingested_at)\n);\nobservations\n| where ingested_at == LatestIngestion\n| project\n    Rank = ['rank'],\n    ShowTitle = ['title'],\n    Watchers = watcher_count,\n    ObservedAt = observed_at\n| order by Rank asc",
+      "id": "feeff3bf-d9d5-4a0f-8194-58ff956b1920",
+      "usedVariables": []
+    },
+    {
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "711de3cd-b6e2-42e8-82cd-5287c85b2350"
+      },
+      "text": "let LatestTime = toscalar(\n    observations\n    | summarize max(ingested_at)\n);\nlet PreviousTime = toscalar(\n    observations\n    | where ingested_at < LatestTime\n    | summarize max(ingested_at)\n);\nlet CurrentSnapshot =\n    observations\n    | where ingested_at == LatestTime\n    | project\n        trakt_show_id,\n        ShowTitle = ['title'],\n        CurrentRank = ['rank'],\n        CurrentWatchers = watcher_count;\nlet PreviousSnapshot =\n    observations\n    | where ingested_at == PreviousTime\n    | project\n        trakt_show_id,\n        PreviousRank = ['rank'],\n        PreviousWatchers = watcher_count;\nCurrentSnapshot\n| join kind=leftouter PreviousSnapshot on trakt_show_id\n| extend\n    WatcherChange = CurrentWatchers - PreviousWatchers,\n    RankChange = PreviousRank - CurrentRank\n| top 10 by WatcherChange desc\n| project ShowTitle, CurrentRank, CurrentWatchers, WatcherChange, RankChange",
+      "id": "bbfc5434-accb-4599-a058-2d7feeaa547d",
+      "usedVariables": []
+    },
+    {
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "c501223d-0073-4e87-9298-74bc1223191e"
+      },
+      "text": "observations\n| summarize WatcherActivity = sum(watcher_count)\n    by TimeWindow = bin(ingested_at, 5m)\n| order by TimeWindow asc",
+      "id": "1b254fbc-f4dc-4b69-9675-d9db1e0fdc3d",
+      "usedVariables": []
+    },
+    {
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "711de3cd-b6e2-42e8-82cd-5287c85b2350"
+      },
+      "text": "observations\n| summarize\n    TotalObservations = count(),\n    Collections = dcount(collection_id),\n    LastUpdated = max(ingested_at)",
+      "id": "20caa78e-6083-4bcb-867f-58e14c68cfd8",
+      "usedVariables": []
+    }
+  ],
+  "embeddedApps": []
+}
