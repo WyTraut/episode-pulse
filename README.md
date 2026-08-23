@@ -68,16 +68,20 @@ The first version will not:
 - Perform review-text sentiment analysis
 - Support commercial usage or high-volume public traffic
 
-## Planned cloud architecture
+## Current cloud architecture
 
-The planned flow is:
+The running flow is:
 
-1. Trakt and TMDB provide source data.
-2. Azure Functions collects and timestamps API responses.
-3. Azure Event Hubs buffers newly collected events.
-4. Microsoft Fabric Eventstream routes real-time data.
-5. Fabric Eventhouse supports current-state and time-window analysis.
-6. A OneLake Lakehouse preserves Bronze, Silver, and Gold data.
-7. Azure App Service hosts the dashboard and its backend API.
+1. Trakt provides the source television activity data.
+2. Azure Functions collects and timestamps a 200-show snapshot every five minutes.
+3. Private Azure Blob Storage preserves raw responses and a compact current-state serving projection.
+4. Azure Event Hubs buffers normalized observations.
+5. Microsoft Fabric Eventstream routes the observations into Eventhouse.
+6. Fabric Eventhouse and a Real-Time Dashboard support current-state, momentum, and pipeline-health analysis.
+7. An HTTPS-only Azure App Service API uses managed identity to read the private serving projection for the future public dashboard.
+
+The live read-only API is available at [app-epulse-dev-wt2026.azurewebsites.net](https://app-epulse-dev-wt2026.azurewebsites.net). Its implementation and security model are described in [docs/api.md](docs/api.md).
+
+The next serving milestone is the browser dashboard. A OneLake Lakehouse and medallion layers remain planned DP-700 extensions rather than completed components.
 
 Infrastructure, application code, data contracts, tests, and deployment workflows will be maintained in this repository.

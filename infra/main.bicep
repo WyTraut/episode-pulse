@@ -23,6 +23,16 @@ param functionAppName string
 @description('Globally unique name for the Event Hubs namespace')
 param eventHubNamespaceName string
 
+@description('Globally unique name for the public EpisodePulse web application')
+param webAppName string
+
+@description('App Service plan size. Use F1 while developing and B1 when Always On is needed.')
+@allowed([
+  'F1'
+  'B1'
+])
+param appServiceSkuName string = 'F1'
+
 // Build a consistent resource group name from the environment and region.
 var resourceGroupName = 'rg-epulse-${environment}-${regionCode}'
 
@@ -94,6 +104,25 @@ module eventHubModule './event-hub.bicep' = {
   ]
 }
 
+// Deploy the public API that reads the private dashboard serving projection.
+module appServiceModule './app-service.bicep' = {
+  name: 'appServiceDeployment'
+  scope: resourceGroup
+  params: {
+    webAppName: webAppName
+    location: location
+    environment: environment
+    storageAccountName: storageAccountName
+    servingContainerName: storageModule.outputs.servingContainerName
+    applicationInsightsName: 'appi-${functionAppName}'
+    appServiceSkuName: appServiceSkuName
+  }
+  dependsOn: [
+    functionAppModule
+  ]
+}
+
 
 // Return the resource group name after the deployment finishes.
 output resourceGroupName string = resourceGroup.name
+output webAppUrl string = appServiceModule.outputs.webAppUrl
