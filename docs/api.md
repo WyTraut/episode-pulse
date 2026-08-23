@@ -6,7 +6,7 @@ The App Service API is the public boundary between the dashboard and the private
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /` | Identifies the service and its endpoints |
+| `GET /` | Serves the public EpisodePulse dashboard |
 | `GET /health` | Confirms that the web process is running |
 | `GET /api/trending` | Returns the latest `trending/current.json` serving document |
 

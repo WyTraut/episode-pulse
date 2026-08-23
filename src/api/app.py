@@ -1,14 +1,18 @@
 import logging
 import os
 from functools import lru_cache
+from pathlib import Path
 
 from azure.core.exceptions import AzureError, ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobClient, BlobServiceClient
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 
 CURRENT_TRENDING_BLOB_NAME = "trending/current.json"
+STATIC_DIRECTORY = Path(__file__).parent / "static"
 
 logger = logging.getLogger("episodepulse.api")
 
@@ -17,6 +21,26 @@ app = FastAPI(
     version="1.0.0",
     description="Public read-only API for EpisodePulse dashboard data.",
 )
+
+app.mount("/static", StaticFiles(directory=STATIC_DIRECTORY), name="static")
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next) -> Response:
+    response = await call_next(request)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "style-src 'self'; "
+        "script-src 'self'; "
+        "connect-src 'self'; "
+        "img-src 'self' data:; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "frame-ancestors 'none'"
+    )
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 def _required_setting(name: str) -> str:
@@ -45,12 +69,8 @@ def _current_trending_blob_client() -> BlobClient:
 
 
 @app.get("/")
-def root() -> dict[str, str]:
-    return {
-        "service": "EpisodePulse API",
-        "trending_endpoint": "/api/trending",
-        "health_endpoint": "/health",
-    }
+def root() -> FileResponse:
+    return FileResponse(STATIC_DIRECTORY / "index.html")
 
 
 @app.get("/health")

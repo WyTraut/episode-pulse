@@ -35,6 +35,24 @@ def test_health_endpoint() -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_root_serves_dashboard() -> None:
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "See what viewers are moving toward." in response.text
+    assert response.headers["x-content-type-options"] == "nosniff"
+
+
+def test_static_dashboard_assets_are_available() -> None:
+    stylesheet = client.get("/static/styles.css")
+    javascript = client.get("/static/dashboard.js")
+
+    assert stylesheet.status_code == 200
+    assert javascript.status_code == 200
+    assert 'fetch("/api/trending"' in javascript.text
+
+
 def test_returns_current_trending_document(monkeypatch) -> None:
     document = {
         "serving_schema_version": "1.0",
