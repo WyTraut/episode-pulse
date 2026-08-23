@@ -1,0 +1,34 @@
+{
+  "queryset": {
+    "version": "1.0.0",
+    "dataSources": [
+      {
+        "id": "cef22501-493f-4a1e-8f7c-ec08e888e250",
+        "clusterUri": "",
+        "type": "Fabric",
+        "databaseItemId": "8dfeb917-2ffd-b66a-41dd-b68e4b0a85fd"
+      }
+    ],
+    "tabs": [
+      {
+        "id": "2aa62c96-2f55-46c5-8241-46ba4491151d",
+        "content": "let LatestIngestion = toscalar(\n    observations\n    | summarize max(ingested_at)\n);\nobservations\n| where ingested_at == LatestIngestion\n| project\n    Rank = ['rank'],\n    ShowTitle = ['title'],\n    Watchers = watcher_count,\n    ObservedAt = observed_at\n| order by Rank asc",
+        "title": "Tab",
+        "dataSourceId": "cef22501-493f-4a1e-8f7c-ec08e888e250"
+      },
+      {
+        "id": "1805d01c-d5b2-4082-b762-24d90a6398a9",
+        "content": "let LatestTime = toscalar(\n    observations\n    | summarize max(ingested_at)\n);\nlet PreviousTime = toscalar(\n    observations\n    | where ingested_at < LatestTime\n    | summarize max(ingested_at)\n);\nlet CurrentSnapshot =\n    observations\n    | where ingested_at == LatestTime\n    | project\n        trakt_show_id,\n        ShowTitle = ['title'],\n        CurrentRank = ['rank'],\n        CurrentWatchers = watcher_count;\nlet PreviousSnapshot =\n    observations\n    | where ingested_at == PreviousTime\n    | project\n        trakt_show_id,\n        PreviousRank = ['rank'],\n        PreviousWatchers = watcher_count;\nCurrentSnapshot\n| join kind=leftouter PreviousSnapshot on trakt_show_id\n| extend\n    WatcherChange = CurrentWatchers - PreviousWatchers,\n    RankChange = PreviousRank - CurrentRank\n| top 10 by WatcherChange desc\n| project ShowTitle, CurrentRank, CurrentWatchers, WatcherChange, RankChange",
+        "title": "",
+        "dataSourceId": "cef22501-493f-4a1e-8f7c-ec08e888e250"
+      },
+      {
+        "id": "9df7187a-d6ee-42ec-8acc-188ddf1de5dc",
+        "content": "observations\n| summarize WatcherActivity = sum(watcher_count)\n    by TimeWindow = bin(ingested_at, 5m)\n| order by TimeWindow asc",
+        "title": "",
+        "dataSourceId": "cef22501-493f-4a1e-8f7c-ec08e888e250"
+      }
+    ],
+    "querysetType": "Standalone"
+  }
+}

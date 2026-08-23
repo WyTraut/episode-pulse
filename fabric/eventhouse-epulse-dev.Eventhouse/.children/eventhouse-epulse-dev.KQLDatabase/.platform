@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "KQLDatabase",
+    "displayName": "eventhouse-epulse-dev"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "8dfeb917-2ffd-b66a-41dd-b68e4b0a85fd"
+  }
+}

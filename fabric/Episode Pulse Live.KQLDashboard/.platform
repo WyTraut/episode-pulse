@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "KQLDashboard",
+    "displayName": "Episode Pulse Live",
+    "description": "Episode Pulse Live"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "91a88035-8eae-88ef-4b65-7a96080742a1"
+  }
+}

@@ -1,0 +1,130 @@
+{
+  "sources": [
+    {
+      "id": "f9aeb4fc-4151-416b-a8a9-977cfeb5ac23",
+      "name": "azure-event-hub",
+      "type": "AzureEventHubExtended",
+      "properties": {
+        "dataConnectionId": "2a0d55c0-0f27-445c-836d-5a321179549c",
+        "consumerGroupName": "$Default",
+        "startPosition": "Latest"
+      }
+    }
+  ],
+  "destinations": [
+    {
+      "id": "f9852d2e-886f-4741-8ca1-a73ada8dc257",
+      "name": "Eventhouse",
+      "type": "Eventhouse",
+      "properties": {
+        "dataIngestionMode": "DirectIngestion",
+        "workspaceId": "00000000-0000-0000-0000-000000000000",
+        "itemId": "8dfeb917-2ffd-b66a-41dd-b68e4b0a85fd",
+        "tableName": "observations",
+        "connectionName": "es-epulse-observations-dev_53a1ru",
+        "mappingRuleName": "observations_mapping"
+      },
+      "inputNodes": [
+        {
+          "name": "es-epulse-observations-dev-stream"
+        }
+      ],
+      "inputSchemas": [
+        {
+          "name": "es-epulse-observations-dev-stream",
+          "schema": {
+            "columns": [
+              {
+                "name": "event_id",
+                "type": "Nvarchar(max)",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "collection_id",
+                "type": "Nvarchar(max)",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "schema_version",
+                "type": "Nvarchar(max)",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "metric_type",
+                "type": "Nvarchar(max)",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "trakt_show_id",
+                "type": "BigInt",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "tmdb_show_id",
+                "type": "BigInt",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "title",
+                "type": "Nvarchar(max)",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "watcher_count",
+                "type": "BigInt",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "rank",
+                "type": "BigInt",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "source_timestamp",
+                "type": "Nvarchar(max)",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "observed_at",
+                "type": "DateTime",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "ingested_at",
+                "type": "DateTime",
+                "fields": null,
+                "items": null
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "streams": [
+    {
+      "id": "a66723d5-365b-4c68-955e-7f9bb88fdbc1",
+      "name": "es-epulse-observations-dev-stream",
+      "type": "DefaultStream",
+      "properties": {},
+      "inputNodes": [
+        {
+          "name": "azure-event-hub"
+        }
+      ]
+    }
+  ],
+  "operators": [],
+  "compatibilityLevel": "1.1"
+}
