@@ -7,6 +7,8 @@ const elements = {
   featuredShows: document.querySelector("#featured-shows"),
   featuredPrevious: document.querySelector("#featured-previous"),
   featuredNext: document.querySelector("#featured-next"),
+  reviewsFeed: document.querySelector("#recent-reviews"),
+  reviewsStatus: document.querySelector("#reviews-status"),
   loadStatus: document.querySelector("#load-status"),
   refreshButton: document.querySelector("#refresh-button"),
   rankingRows: document.querySelector("#ranking-rows"),
@@ -279,6 +281,85 @@ function renderRows(shows, animateUpdate) {
   });
 
   elements.rankingRows.replaceChildren(fragment);
+}
+
+function renderReviews(data) {
+  const reviews = Array.isArray(data.reviews) ? data.reviews : [];
+  const fragment = document.createDocumentFragment();
+
+  reviews.slice(0, 6).forEach((review) => {
+    const item = document.createElement("article");
+    item.className = "review-item";
+
+    const topline = document.createElement("div");
+    topline.className = "review-topline";
+    const show = document.createElement("h3");
+    show.textContent = review.show?.title || "Untitled show";
+    const rating = document.createElement("span");
+    rating.textContent = review.rating === null || review.rating === undefined
+      ? "Not rated"
+      : `${review.rating}/10`;
+    topline.append(show, rating);
+
+    const excerpt = document.createElement("p");
+    excerpt.className = "review-excerpt";
+    if (review.spoiler) {
+      item.classList.add("is-spoiler");
+      excerpt.textContent = "This review contains spoilers. Its text stays hidden here.";
+    } else {
+      excerpt.textContent = review.excerpt || "No excerpt was provided.";
+    }
+
+    const footer = document.createElement("div");
+    footer.className = "review-footer";
+    const byline = document.createElement("span");
+    const reviewer = review.reviewer?.username
+      ? `@${review.reviewer.username}`
+      : review.reviewer?.display_name || "Trakt member";
+    byline.textContent = reviewer;
+    const time = document.createElement("time");
+    time.dateTime = review.created_at || "";
+    time.textContent = formatDate(review.created_at);
+    const link = document.createElement("a");
+    link.href = review.url;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    link.textContent = review.spoiler ? "Read spoiler on Trakt ↗" : "Read on Trakt ↗";
+    footer.append(byline, time, link);
+
+    item.append(topline, excerpt, footer);
+    fragment.append(item);
+  });
+
+  elements.reviewsFeed.replaceChildren(fragment);
+  if (reviews.length === 0) {
+    elements.reviewsStatus.textContent = "No recent TV reviews are available yet.";
+    return;
+  }
+
+  const newReviewLabel = data.new_review_count === 1
+    ? "1 new review at the latest check"
+    : `${numberFormatter.format(data.new_review_count || 0)} new reviews at the latest check`;
+  elements.reviewsStatus.textContent = `Checked ${formatDate(data.checked_at)} · ${newReviewLabel}.`;
+  elements.reviewsStatus.classList.remove("is-error");
+}
+
+async function loadReviews() {
+  elements.reviewsStatus.classList.remove("is-error");
+
+  try {
+    const response = await fetch("/api/reviews?limit=6", {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}.`);
+    }
+    renderReviews(await response.json());
+  } catch (error) {
+    console.error(error);
+    elements.reviewsStatus.textContent = "The latest reviews could not be loaded. Try again shortly.";
+    elements.reviewsStatus.classList.add("is-error");
+  }
 }
 
 function renderSnapshot(data) {
@@ -606,7 +687,11 @@ function selectChartMetric(metric) {
   drawHistoryChart(true);
 }
 
-elements.refreshButton.addEventListener("click", loadTrending);
+async function refreshAll() {
+  await Promise.allSettled([loadTrending(), loadReviews()]);
+}
+
+elements.refreshButton.addEventListener("click", refreshAll);
 elements.featuredPrevious.addEventListener("click", () => scrollFeatured(-1));
 elements.featuredNext.addEventListener("click", () => scrollFeatured(1));
 elements.featuredShows.addEventListener("scroll", updateRailControls, { passive: true });
@@ -631,5 +716,5 @@ window.addEventListener("resize", () => {
   });
 });
 
-loadTrending();
-window.setInterval(loadTrending, 60 * 1000);
+refreshAll();
+window.setInterval(refreshAll, 60 * 1000);

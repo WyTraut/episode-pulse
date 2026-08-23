@@ -42,6 +42,7 @@ def test_root_serves_dashboard() -> None:
     assert response.headers["content-type"].startswith("text/html")
     assert "TV attention." in response.text
     assert "Shows drawing the most attention." in response.text
+    assert "Reviews arriving now." in response.text
     assert 'class="page-third intro-third"' in response.text
     assert 'class="page-third signal-third"' in response.text
     assert 'class="page-third archive-third"' in response.text
@@ -57,6 +58,7 @@ def test_static_dashboard_assets_are_available() -> None:
     assert stylesheet.status_code == 200
     assert javascript.status_code == 200
     assert 'fetch("/api/trending"' in javascript.text
+    assert 'fetch("/api/reviews?limit=6"' in javascript.text
     assert "`/api/shows/${showId}/history`" in javascript.text
     assert "createTrendSparkline" in javascript.text
     assert "smoothSparklinePoints" in javascript.text
@@ -92,6 +94,76 @@ def test_returns_current_trending_document(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json() == document
     assert response.headers["cache-control"] == "public, max-age=60"
+
+
+def make_reviews_document() -> dict:
+    return {
+        "serving_schema_version": "1.0",
+        "metric_type": "recent_show_reviews",
+        "checked_at": "2026-08-23T12:00:00Z",
+        "new_review_count": 1,
+        "review_count": 2,
+        "reviews": [
+            {"review_id": 2, "excerpt": "Newest review"},
+            {"review_id": 1, "excerpt": "Older review"},
+        ],
+    }
+
+
+def test_returns_limited_recent_reviews(monkeypatch) -> None:
+    monkeypatch.setattr(
+        api_module,
+        "_recent_reviews_blob_client",
+        lambda: FakeBlobClient(
+            FakeDownload(payload=json.dumps(make_reviews_document()).encode())
+        ),
+    )
+
+    response = client.get("/api/reviews?limit=1")
+
+    assert response.status_code == 200
+    assert response.json()["returned_count"] == 1
+    assert response.json()["review_count"] == 2
+    assert response.json()["reviews"] == [
+        {"review_id": 2, "excerpt": "Newest review"}
+    ]
+    assert response.headers["cache-control"] == "public, max-age=60"
+
+
+def test_recent_reviews_rejects_invalid_limit() -> None:
+    response = client.get("/api/reviews?limit=51")
+
+    assert response.status_code == 422
+
+
+def test_recent_reviews_returns_service_unavailable_when_missing(monkeypatch) -> None:
+    monkeypatch.setattr(
+        api_module,
+        "_recent_reviews_blob_client",
+        lambda: FakeBlobClient(
+            FakeDownload(error=ResourceNotFoundError("Missing"))
+        ),
+    )
+
+    response = client.get("/api/reviews")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Recent reviews are not available yet."}
+
+
+def test_recent_reviews_returns_bad_gateway_on_storage_failure(monkeypatch) -> None:
+    monkeypatch.setattr(
+        api_module,
+        "_recent_reviews_blob_client",
+        lambda: FakeBlobClient(
+            FakeDownload(error=HttpResponseError(message="Storage failed"))
+        ),
+    )
+
+    response = client.get("/api/reviews")
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": "Recent reviews could not be retrieved."}
 
 
 def make_current_document() -> dict:

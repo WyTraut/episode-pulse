@@ -7,13 +7,14 @@ from pathlib import Path
 from azure.core.exceptions import AzureError, ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobClient, BlobServiceClient
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 
 CURRENT_TRENDING_BLOB_NAME = "trending/current.json"
 RECENT_TRENDING_BLOB_NAME = "trending/recent.json"
+RECENT_REVIEWS_BLOB_NAME = "reviews/recent.json"
 DEFAULT_HISTORY_RETENTION_POINTS = 288
 SIX_HOUR_POINTS = 72
 STATIC_DIRECTORY = Path(__file__).parent / "static"
@@ -76,6 +77,13 @@ def _recent_trending_blob_client() -> BlobClient:
     return _blob_service_client().get_blob_client(
         container=_required_setting("SERVING_CONTAINER_NAME"),
         blob=RECENT_TRENDING_BLOB_NAME,
+    )
+
+
+def _recent_reviews_blob_client() -> BlobClient:
+    return _blob_service_client().get_blob_client(
+        container=_required_setting("SERVING_CONTAINER_NAME"),
+        blob=RECENT_REVIEWS_BLOB_NAME,
     )
 
 
@@ -372,6 +380,42 @@ def current_trending() -> Response:
 
     return Response(
         content=json.dumps(document, ensure_ascii=False, separators=(",", ":")),
+        media_type="application/json",
+        headers={"Cache-Control": "public, max-age=60"},
+    )
+
+
+@app.get("/api/reviews")
+def recent_reviews(limit: int = Query(default=12, ge=1, le=50)) -> Response:
+    """Return the newest spoiler-safe Trakt TV review excerpts."""
+
+    try:
+        document = json.loads(
+            _recent_reviews_blob_client().download_blob().readall()
+        )
+    except ResourceNotFoundError as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Recent reviews are not available yet.",
+        ) from error
+    except (AzureError, json.JSONDecodeError) as error:
+        logger.exception("Unable to read the recent review projection.")
+        raise HTTPException(
+            status_code=502,
+            detail="Recent reviews could not be retrieved.",
+        ) from error
+
+    response_document = {
+        **document,
+        "returned_count": min(limit, len(document.get("reviews", []))),
+        "reviews": document.get("reviews", [])[:limit],
+    }
+    return Response(
+        content=json.dumps(
+            response_document,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ),
         media_type="application/json",
         headers={"Cache-Control": "public, max-age=60"},
     )

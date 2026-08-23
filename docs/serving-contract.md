@@ -39,6 +39,14 @@ Repeated source hashes remain as separate collections so flat periods honestly s
 
 The public API joins this history to the current document at read time. This keeps the original five-minute and six-hour fields backward compatible while exposing full-window net change, movement range, observation count, trend status, and top-20 sparkline points.
 
+## Recent review document
+
+`serving/reviews/recent.json` retains the latest 100 unique TV reviews returned by Trakt's recently-created review endpoint. Review IDs are the deduplication key. A repeated review updates its public metadata without creating a second feed item, and reviews are ordered by descending `created_at`.
+
+Each review contains its Trakt review ID and URL, creation/update timestamps, spoiler and language flags, rating and like count, public reviewer name/username, and show identifiers. Non-spoiler text is normalized and limited to a 320-character excerpt. Spoiler text remains only in immutable private raw storage and is represented as `excerpt: null` in this document.
+
+The top-level document records `checked_at`, `latest_review_at`, `new_review_count`, `review_count`, and the configured retention count. Collection failures are isolated from the trending pipeline.
+
 ## Validation rules
 
 - `collection_size` must equal the number of items in `shows`.
@@ -47,3 +55,6 @@ The public API joins this history to the current document at read time. This kee
 - `changed_at` changes only when `snapshot_hash` changes.
 - History must remain chronologically ordered and contain at most 288 collections.
 - The document must remain private and must not contain Trakt user identities or credentials.
+- Review IDs must be positive and unique in the recent-review document.
+- Public review excerpts must not exceed 320 characters or expose spoiler text.
+- Credentials and nonessential Trakt profile fields must never enter the review serving projection.

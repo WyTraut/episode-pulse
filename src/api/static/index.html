@@ -21,6 +21,7 @@
 
         <nav aria-label="Primary navigation">
           <a href="#trending">Trending</a>
+          <a href="#reviews">Reviews</a>
           <a href="#rankings">Rankings</a>
           <a href="#method">Method</a>
         </nav>
@@ -89,6 +90,20 @@
             </div>
           </div>
           <div class="featured-rail" id="featured-shows" aria-live="polite"></div>
+
+          <section class="reviews-section" id="reviews" aria-labelledby="reviews-title">
+            <div class="reviews-heading">
+              <div>
+                <p class="eyebrow">New audience notes</p>
+                <h2 id="reviews-title">Reviews arriving now.</h2>
+              </div>
+              <div class="reviews-intro">
+                <p>Recently written TV reviews from the Trakt community, collected and deduplicated every five minutes.</p>
+                <p class="reviews-status" id="reviews-status" role="status" aria-live="polite">Loading recent reviews…</p>
+              </div>
+            </div>
+            <div class="review-feed" id="recent-reviews" aria-live="polite"></div>
+          </section>
         </div>
       </section>
 
