@@ -25,6 +25,9 @@ param applicationInsightsName string
 ])
 param appServiceSkuName string = 'F1'
 
+@description('Optional trusted CIDR allowed to reach the SCM deployment endpoint')
+param scmDeploymentClientIpCidr string = ''
+
 var appServicePlanName = 'plan-${webAppName}'
 var appServiceSkuTier = appServiceSkuName == 'F1' ? 'Free' : 'Basic'
 var storageBlobDataReaderRoleId = '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
@@ -86,13 +89,103 @@ resource webApp 'Microsoft.Web/sites@2024-04-01' = {
       alwaysOn: appServiceSkuName != 'F1'
       ftpsState: 'Disabled'
       http20Enabled: true
+      httpLoggingEnabled: true
+      detailedErrorLoggingEnabled: false
+      requestTracingEnabled: false
       minTlsVersion: '1.2'
+      scmIpSecurityRestrictions: concat(
+        empty(scmDeploymentClientIpCidr)
+          ? []
+          : [
+              {
+                name: 'AllowTrustedDeploymentClient'
+                description: 'Allow the explicitly trusted deployment client.'
+                ipAddress: scmDeploymentClientIpCidr
+                action: 'Allow'
+                priority: 90
+              }
+            ],
+        [
+          {
+            name: 'AllowAzureDeployments'
+            description: 'Allow authenticated deployments initiated through Azure.'
+            ipAddress: 'AzureCloud'
+            action: 'Allow'
+            priority: 100
+            tag: 'ServiceTag'
+          }
+        ]
+      )
+      scmIpSecurityRestrictionsDefaultAction: 'Deny'
     }
   }
   tags: {
     application: 'EpisodePulse'
     environment: environment
     managedBy: 'Bicep'
+  }
+}
+
+// Require Microsoft Entra authentication for every deployment path.
+resource scmBasicPublishingCredentials 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@2024-04-01' = {
+  parent: webApp
+  name: 'scm'
+  properties: {
+    allow: false
+  }
+}
+
+resource ftpBasicPublishingCredentials 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@2024-04-01' = {
+  parent: webApp
+  name: 'ftp'
+  properties: {
+    allow: false
+  }
+}
+
+// Send request, application, authentication, audit, and platform telemetry to
+// the Log Analytics workspace already connected to Application Insights.
+resource webAppDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  name: 'diag-${webAppName}'
+  scope: webApp
+  properties: {
+    workspaceId: applicationInsights.properties.WorkspaceResourceId
+    logs: [
+      {
+        category: 'AppServiceHTTPLogs'
+        enabled: true
+      }
+      {
+        category: 'AppServiceConsoleLogs'
+        enabled: true
+      }
+      {
+        category: 'AppServiceAppLogs'
+        enabled: true
+      }
+      {
+        category: 'AppServiceAuditLogs'
+        enabled: true
+      }
+      {
+        category: 'AppServiceIPSecAuditLogs'
+        enabled: true
+      }
+      {
+        category: 'AppServicePlatformLogs'
+        enabled: true
+      }
+      {
+        category: 'AppServiceAuthenticationLogs'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+      }
+    ]
   }
 }
 

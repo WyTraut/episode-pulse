@@ -18,6 +18,12 @@ The App Service API is the public boundary between the dashboard and the private
 - App Service uses its system-assigned managed identity.
 - That identity receives `Storage Blob Data Reader` only on the `serving` container.
 - No storage account key or connection string is stored in the web application.
+- HTTP is redirected to HTTPS and successful/error responses include HSTS, a restrictive Content Security Policy, browser capability restrictions, and MIME-sniffing protection.
+- Public API endpoints are limited to 120 requests per client per minute. Rate-limited responses return `429`, `Retry-After`, and `Cache-Control: no-store`.
+- FastAPI's generated `/docs`, `/redoc`, and `/openapi.json` endpoints are disabled on the public application. Maintained API documentation lives in this repository.
+- SCM and FTP basic publishing credentials are disabled. Azure deployments require Microsoft Entra authorization, and the SCM endpoint accepts traffic only from the Azure service network.
+- Direct local deployments additionally require the operator's current public `/32` CIDR through the `scmDeploymentClientIpCidr` Bicep parameter. The value belongs in deployment parameters, not source control.
+- App Service HTTP, console, application, authentication, audit, IP security, platform, and metric telemetry is sent to the existing Log Analytics workspace.
 
 The history endpoint returns explicit gaps with `present: false` when a show was outside the trending collection. Its `source_changed` field distinguishes a newly returned Trakt payload from a repeated cached payload.
 

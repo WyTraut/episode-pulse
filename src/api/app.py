@@ -1,8 +1,11 @@
 import json
 import logging
 import os
+import time
+from collections import OrderedDict
 from functools import lru_cache
 from pathlib import Path
+from threading import Lock
 
 from azure.core.exceptions import AzureError, ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
@@ -17,6 +20,9 @@ RECENT_TRENDING_BLOB_NAME = "trending/recent.json"
 RECENT_REVIEWS_BLOB_NAME = "reviews/recent.json"
 DEFAULT_HISTORY_RETENTION_POINTS = 288
 SIX_HOUR_POINTS = 72
+API_RATE_LIMIT_REQUESTS = 120
+API_RATE_LIMIT_WINDOW_SECONDS = 60
+API_RATE_LIMIT_MAX_CLIENTS = 10_000
 STATIC_DIRECTORY = Path(__file__).parent / "static"
 
 logger = logging.getLogger("episodepulse.api")
@@ -25,14 +31,74 @@ app = FastAPI(
     title="EpisodePulse API",
     version="1.0.0",
     description="Public read-only API for EpisodePulse dashboard data.",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 
 app.mount("/static", StaticFiles(directory=STATIC_DIRECTORY), name="static")
 
 
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next) -> Response:
-    response = await call_next(request)
+class FixedWindowRateLimiter:
+    """Bounded, in-process protection for this small public read-only API."""
+
+    def __init__(
+        self,
+        requests_per_window: int,
+        window_seconds: int,
+        max_clients: int,
+    ) -> None:
+        self.requests_per_window = requests_per_window
+        self.window_seconds = window_seconds
+        self.max_clients = max_clients
+        self._clients: OrderedDict[str, tuple[int, int]] = OrderedDict()
+        self._lock = Lock()
+
+    def check(self, client_id: str, now: float | None = None) -> tuple[bool, int, int]:
+        current_time = time.time() if now is None else now
+        window = int(current_time // self.window_seconds)
+
+        with self._lock:
+            previous_window, count = self._clients.pop(client_id, (window, 0))
+            if previous_window != window:
+                count = 0
+
+            if count >= self.requests_per_window:
+                self._clients[client_id] = (window, count)
+                retry_after = max(
+                    1,
+                    int((window + 1) * self.window_seconds - current_time) + 1,
+                )
+                return False, 0, retry_after
+
+            count += 1
+            self._clients[client_id] = (window, count)
+            while len(self._clients) > self.max_clients:
+                self._clients.popitem(last=False)
+
+            return True, self.requests_per_window - count, 0
+
+
+_api_rate_limiter = FixedWindowRateLimiter(
+    requests_per_window=API_RATE_LIMIT_REQUESTS,
+    window_seconds=API_RATE_LIMIT_WINDOW_SECONDS,
+    max_clients=API_RATE_LIMIT_MAX_CLIENTS,
+)
+
+
+def _client_identifier(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        # App Service appends the address it observed. Use that final hop so a
+        # caller cannot bypass throttling by prepending a forged address.
+        return forwarded_for.rsplit(",", 1)[-1].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _add_security_headers(response: Response) -> Response:
+    response.headers["Strict-Transport-Security"] = (
+        "max-age=31536000; includeSubDomains"
+    )
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "style-src 'self'; "
@@ -43,9 +109,45 @@ async def add_security_headers(request: Request, call_next) -> Response:
         "base-uri 'self'; "
         "frame-ancestors 'none'"
     )
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Permissions-Policy"] = (
+        "camera=(), geolocation=(), microphone=()"
+    )
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next) -> Response:
+    rate_limit_headers = {}
+    if request.url.path.startswith("/api/"):
+        allowed, remaining, retry_after = _api_rate_limiter.check(
+            _client_identifier(request)
+        )
+        rate_limit_headers = {
+            "X-RateLimit-Limit": str(API_RATE_LIMIT_REQUESTS),
+            "X-RateLimit-Remaining": str(remaining),
+        }
+        if not allowed:
+            response = Response(
+                content=json.dumps(
+                    {"detail": "Too many requests. Try again shortly."},
+                    separators=(",", ":"),
+                ),
+                status_code=429,
+                media_type="application/json",
+                headers={
+                    **rate_limit_headers,
+                    "Retry-After": str(retry_after),
+                    "Cache-Control": "no-store",
+                },
+            )
+            return _add_security_headers(response)
+
+    response = await call_next(request)
+    response.headers.update(rate_limit_headers)
+    return _add_security_headers(response)
 
 
 def _required_setting(name: str) -> str:

@@ -49,6 +49,18 @@ def test_root_serves_dashboard() -> None:
     assert '<dialog class="show-drawer"' in response.text
     assert '<canvas id="history-chart"' in response.text
     assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["strict-transport-security"] == (
+        "max-age=31536000; includeSubDomains"
+    )
+    assert response.headers["cross-origin-opener-policy"] == "same-origin"
+    assert response.headers["permissions-policy"] == (
+        "camera=(), geolocation=(), microphone=()"
+    )
+
+
+def test_generated_api_documentation_is_not_public() -> None:
+    assert client.get("/docs").status_code == 404
+    assert client.get("/openapi.json").status_code == 404
 
 
 def test_static_dashboard_assets_are_available() -> None:
@@ -164,6 +176,37 @@ def test_recent_reviews_returns_bad_gateway_on_storage_failure(monkeypatch) -> N
 
     assert response.status_code == 502
     assert response.json() == {"detail": "Recent reviews could not be retrieved."}
+
+
+def test_api_rate_limit_returns_retryable_response(monkeypatch) -> None:
+    monkeypatch.setattr(
+        api_module,
+        "_api_rate_limiter",
+        api_module.FixedWindowRateLimiter(
+            requests_per_window=2,
+            window_seconds=60,
+            max_clients=10,
+        ),
+    )
+    monkeypatch.setattr(
+        api_module,
+        "_recent_reviews_blob_client",
+        lambda: FakeBlobClient(
+            FakeDownload(payload=json.dumps(make_reviews_document()).encode())
+        ),
+    )
+    first_headers = {"X-Forwarded-For": "198.51.100.1, 203.0.113.10"}
+    second_headers = {"X-Forwarded-For": "198.51.100.2, 203.0.113.10"}
+
+    assert client.get("/api/reviews", headers=first_headers).status_code == 200
+    assert client.get("/api/reviews", headers=second_headers).status_code == 200
+    response = client.get("/api/reviews", headers=second_headers)
+
+    assert response.status_code == 429
+    assert response.json() == {"detail": "Too many requests. Try again shortly."}
+    assert response.headers["retry-after"]
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["strict-transport-security"]
 
 
 def make_current_document() -> dict:

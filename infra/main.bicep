@@ -33,6 +33,9 @@ param webAppName string
 ])
 param appServiceSkuName string = 'F1'
 
+@description('Optional trusted CIDR allowed to reach the App Service SCM deployment endpoint')
+param scmDeploymentClientIpCidr string = ''
+
 // Build a consistent resource group name from the environment and region.
 var resourceGroupName = 'rg-epulse-${environment}-${regionCode}'
 
@@ -116,6 +119,7 @@ module appServiceModule './app-service.bicep' = {
     servingContainerName: storageModule.outputs.servingContainerName
     applicationInsightsName: 'appi-${functionAppName}'
     appServiceSkuName: appServiceSkuName
+    scmDeploymentClientIpCidr: scmDeploymentClientIpCidr
   }
   dependsOn: [
     functionAppModule
