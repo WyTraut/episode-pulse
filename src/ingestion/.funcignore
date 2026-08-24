@@ -1,1 +1,11 @@
-
+.venv/
+.python_packages/
+.pytest_cache/
+.vscode/
+__pycache__/
+tests/
+*.py[cod]
+.gitignore
+local.settings.json
+requirements-dev.txt
+backfill_history.py

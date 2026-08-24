@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="EpisodePulse tracks changing television attention using frequently collected Trakt activity snapshots.">
+    <meta name="theme-color" content="#292b2c">
+    <title>EpisodePulse — Television attention, observed live</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/dashboard.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#rankings">Skip to rankings</a>
+
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="/" aria-label="EpisodePulse home">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>EpisodePulse</span>
+        </a>
+
+        <nav aria-label="Primary navigation">
+          <a href="#trending">Trending</a>
+          <a href="#reviews">Reviews</a>
+          <a href="#rankings">Rankings</a>
+          <a href="#method">Method</a>
+        </nav>
+
+        <div class="live-badge" id="live-badge">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span id="live-label">Connecting</span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="page-third intro-third" aria-labelledby="page-title">
+        <div class="band-inner">
+          <div class="hero">
+            <p class="eyebrow">Television attention observatory</p>
+            <h1 id="page-title">
+              <span>TV attention.</span>
+              <span class="hero-muted">See what audiences are moving toward, right now.</span>
+            </h1>
+            <div class="hero-footer">
+              <p>
+                EpisodePulse captures recurring Trakt activity snapshots and preserves how television attention changes over time.
+              </p>
+              <a href="#trending">Explore the current signal <span aria-hidden="true">↓</span></a>
+            </div>
+          </div>
+
+          <div class="pulse-facts" aria-label="Current snapshot information">
+            <article>
+              <span class="fact-symbol fact-symbol-live" aria-hidden="true"></span>
+              <div>
+                <p class="fact-label">Last checked</p>
+                <p class="fact-value" id="checked-at">—</p>
+              </div>
+            </article>
+            <article>
+              <span class="fact-symbol">Δ</span>
+              <div>
+                <p class="fact-label">Signal changed</p>
+                <p class="fact-value" id="changed-at">—</p>
+              </div>
+            </article>
+            <article>
+              <span class="fact-symbol">#</span>
+              <div>
+                <p class="fact-label">Shows observed</p>
+                <p class="fact-value" id="show-count">—</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="page-third signal-third" id="trending" aria-labelledby="featured-title">
+        <div class="band-inner featured-section">
+          <div class="section-heading featured-heading">
+            <p class="section-number" aria-hidden="true">02</p>
+            <h2 id="featured-title">
+              <span>Trending now.</span>
+              <span>Shows drawing the most attention.</span>
+            </h2>
+            <div class="rail-controls" aria-label="Featured shows controls">
+              <button id="featured-previous" type="button" aria-label="Previous featured shows">←</button>
+              <button id="featured-next" type="button" aria-label="Next featured shows">→</button>
+            </div>
+          </div>
+          <div class="featured-rail" id="featured-shows" aria-live="polite"></div>
+
+          <section class="reviews-section" id="reviews" aria-labelledby="reviews-title">
+            <div class="reviews-heading">
+              <div>
+                <p class="eyebrow">New audience notes</p>
+                <h2 id="reviews-title">Reviews arriving now.</h2>
+              </div>
+              <div class="reviews-intro">
+                <p>Recently written TV reviews from the Trakt community, collected and deduplicated every five minutes.</p>
+                <p class="reviews-status" id="reviews-status" role="status" aria-live="polite">Loading recent reviews…</p>
+              </div>
+            </div>
+            <div class="review-feed" id="recent-reviews" aria-live="polite"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="page-third archive-third" aria-labelledby="rankings-title">
+        <div class="band-inner">
+          <div class="rankings" id="rankings">
+            <div class="section-heading rankings-heading">
+              <p class="section-number" aria-hidden="true">03</p>
+              <h2 id="rankings-title">
+                <span>Full signal.</span>
+                <span>The top 20 in one view.</span>
+              </h2>
+              <button class="refresh-button" id="refresh-button" type="button">
+                Refresh data
+              </button>
+            </div>
+
+            <p class="load-status" id="load-status" role="status" aria-live="polite">Loading the latest snapshot…</p>
+
+            <div class="table-shell">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Rank</th>
+                    <th scope="col">Show</th>
+                    <th scope="col" class="number-column">Watchers</th>
+                    <th scope="col" class="movement-column">24-hour trend</th>
+                  </tr>
+                </thead>
+                <tbody id="ranking-rows"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <section class="method-section" id="method" aria-labelledby="method-title">
+            <div>
+              <p class="eyebrow">Read the signal honestly</p>
+              <h2 id="method-title">Activity, not total viewership.</h2>
+            </div>
+            <div class="method-copy">
+              <p>
+                These rankings reflect activity from the Trakt community. They are frequently collected observations—not official audience measurements from streaming platforms or broadcasters.
+              </p>
+              <a href="https://github.com/WyTraut/episode-pulse/blob/main/docs/api.md">Explore the API documentation <span aria-hidden="true">↗</span></a>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <dialog class="show-drawer" id="show-detail" aria-labelledby="drawer-title">
+      <div class="drawer-shell">
+        <header class="drawer-header">
+          <div>
+            <p class="eyebrow">24-hour movement</p>
+            <h2 id="drawer-title">Show history</h2>
+          </div>
+          <button class="drawer-close" id="drawer-close" type="button" aria-label="Close show history">×</button>
+        </header>
+
+        <p class="drawer-status" id="drawer-status" role="status" aria-live="polite">Loading recent history…</p>
+
+        <div class="drawer-content" id="drawer-content" hidden>
+          <div class="drawer-metrics" aria-label="Current show metrics">
+            <article>
+              <p>Current rank</p>
+              <strong id="drawer-rank">—</strong>
+              <span id="drawer-rank-change">—</span>
+            </article>
+            <article>
+              <p>Watchers</p>
+              <strong id="drawer-watchers">—</strong>
+              <span id="drawer-watcher-change">—</span>
+            </article>
+          </div>
+
+          <div class="source-state" id="source-state">
+            <span aria-hidden="true"></span>
+            <p id="source-state-text">Checking source movement…</p>
+          </div>
+
+          <section class="chart-section" aria-labelledby="chart-title">
+            <div class="chart-heading">
+              <div>
+                <p class="chart-label">Recent observations</p>
+                <h3 id="chart-title">Watcher activity</h3>
+              </div>
+              <div class="chart-toggle" aria-label="Chart metric">
+                <button type="button" data-chart-metric="watcher_count" aria-pressed="true">Watchers</button>
+                <button type="button" data-chart-metric="rank" aria-pressed="false">Rank</button>
+              </div>
+            </div>
+            <div class="chart-shell">
+              <canvas id="history-chart" width="720" height="320" aria-label="24-hour watcher activity chart"></canvas>
+            </div>
+            <p class="chart-tooltip" id="chart-tooltip" aria-live="polite">Move across the chart to inspect a point.</p>
+            <p class="chart-range" id="chart-range">—</p>
+          </section>
+        </div>
+      </div>
+    </dialog>
+
+    <footer>
+      <p>Built as an end-to-end Azure and Microsoft Fabric data engineering project.</p>
+      <a href="https://github.com/WyTraut/episode-pulse">View the project on GitHub</a>
+    </footer>
+  </body>
+</html>

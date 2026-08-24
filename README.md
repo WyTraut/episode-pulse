@@ -80,7 +80,7 @@ The running flow is:
 6. Fabric Eventhouse and a Real-Time Dashboard support current-state, momentum, and pipeline-health analysis.
 7. An HTTPS-only Azure App Service API uses managed identity to read the private serving projection for the future public dashboard.
 
-The live read-only API is available at [app-epulse-dev-wt2026.azurewebsites.net](https://app-epulse-dev-wt2026.azurewebsites.net). Its implementation and security model are described in [docs/api.md](docs/api.md).
+The live dashboard is available at [app-epulse-dev-wt2026.azurewebsites.net](https://app-epulse-dev-wt2026.azurewebsites.net). Its same-origin read-only API and security model are described in [docs/api.md](docs/api.md).
 
 The next serving milestone is the browser dashboard. A OneLake Lakehouse and medallion layers remain planned DP-700 extensions rather than completed components.
 
